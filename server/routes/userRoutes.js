@@ -1,0 +1,48 @@
+const express = require('express');
+const router = express.Router();
+const bcrypt = require('bcrypt');
+const User = require('../models/User');
+
+router.post('/register', async (req, res) => {
+  const { email, password, caregiverEmail } = req.body;
+  console.log('Registering:', { email, caregiverEmail });
+  if (!email || !password) {
+    return res.status(400).json({ message: 'Email and password are required' });
+  }
+  try {
+    const user = new User({ email, password, caregiverEmail });
+    await user.save();
+    console.log('User registered:', user.email);
+    res.status(201).json({ userId: user._id, caregiverEmail: user.caregiverEmail, streak: user.streak });
+  } catch (err) {
+    console.error('Register error:', err);
+    res.status(400).json({ message: 'Registration failed', error: err.message });
+  }
+});
+
+router.post('/login', async (req, res) => {
+  const { email, password } = req.body;
+  console.log('Logging in:', email);
+  if (!email || !password) {
+    return res.status(400).json({ message: 'Email and password are required' });
+  }
+  try {
+    const user = await User.findOne({ email });
+    if (!user) {
+      console.log('User not found:', email);
+      return res.status(400).json({ message: 'Invalid credentials' });
+    }
+    const match = await bcrypt.compare(password, user.password);
+    if (!match) {
+      console.log('Password mismatch for:', email);
+      return res.status(400).json({ message: 'Invalid credentials' });
+    }
+    console.log('Login successful for:', email);
+    res.status(200).json({ userId: user._id, caregiverEmail: user.caregiverEmail || '', streak: user.streak });
+  } catch (err) {
+    console.error('Login error:', err);
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+});
+
+module.exports = router;
