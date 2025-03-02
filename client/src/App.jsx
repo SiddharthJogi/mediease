@@ -365,7 +365,7 @@ function App() {
                     <div className="home-stats">
                       <div className="stat-card animate-glow">
                         <h3>{streak}</h3>
-                        <p>{t('streak')}</p>
+                        <p>{('Streak')}</p>
                       </div>
                       <div className="stat-card animate-glow">
                         <h3>{meds.length}</h3>
