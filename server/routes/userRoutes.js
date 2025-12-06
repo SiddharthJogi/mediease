@@ -99,4 +99,43 @@ router.post('/login', async (req, res) => {
   }
 });
 
+/* routes/userRoutes.js (Add this new route) */
+
+// Update User Profile (Generic) - Used for linking caregiver
+router.put('/profile/:userId', async (req, res) => {
+  try {
+    const { caregiverEmail } = req.body;
+    const updates = {};
+    
+    if (caregiverEmail !== undefined) updates.caregiverEmail = caregiverEmail;
+    
+    // You can add other fields here later if needed (e.g. name, phone)
+
+    const user = await User.findByIdAndUpdate(
+      req.params.userId,
+      { $set: updates },
+      { new: true } // Return the updated document
+    ).select('-password');
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.status(200).json({ 
+      success: true, 
+      user: {
+        email: user.email,
+        caregiverEmail: user.caregiverEmail,
+        streak: user.streak,
+        points: user.points,
+        totalDiscount: user.totalDiscount,
+        medications: user.medications
+      }
+    });
+  } catch (err) {
+    console.error('Update profile error:', err);
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+});
+
 module.exports = router;

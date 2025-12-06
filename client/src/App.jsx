@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { useTranslation } from 'react-i18next';
 import Confetti from 'react-confetti';
 import { motion } from 'framer-motion';
 import './App.css';
@@ -38,18 +37,18 @@ const Modal = ({ isOpen, title, children, onClose }) => {
 };
 
 function App() {
-  const { t } = useTranslation();
-  const BASE_URL = 'http://localhost:5000'; // Ensure this matches your backend
+  const BASE_URL = 'http://localhost:5000'; // Change this when you go live!
 
   // State
   const [page, setPage] = useState('auth');
   const [loading, setLoading] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [alertSending, setAlertSending] = useState(false);
 
   // User Data
-  const [user, setUser] = useState(null); // Full user object
-  const [meds, setMeds] = useState([]);   // Daily schedule instances
+  const [user, setUser] = useState(null);
+  const [meds, setMeds] = useState([]);
 
   // Auth Inputs
   const [email, setEmail] = useState('');
@@ -80,7 +79,6 @@ function App() {
         axios.get(`${BASE_URL}/api/users/profile/${id}`)
       ]);
       setMeds(mRes.data);
-      // Update user state with fresh profile data (includes profile medications list)
       const freshUser = { ...user, ...uRes.data, userId: id };
       setUser(freshUser);
       localStorage.setItem('mediease_user', JSON.stringify(freshUser));
@@ -126,27 +124,47 @@ function App() {
   };
 
   const markTaken = async (id) => {
-    // Optimistic UI
     setMeds(meds.map(m => m._id === id ? { ...m, status: 'taken' } : m));
     try {
       const res = await axios.post(`${BASE_URL}/api/medications/${id}/status`);
       if(res.data.user) {
-        // Update points/streak dynamically
         setUser(prev => ({ ...prev, streak: res.data.user.streak, points: res.data.user.points }));
       }
     } catch (e) { console.error(e); }
   };
 
+  // 1. LINK CAREGIVER (Functional)
+  const handleLinkCaregiver = async () => {
+    const newEmail = prompt("Please enter the Caregiver's email address:");
+    if (!newEmail) return;
+
+    try {
+      const res = await axios.put(`${BASE_URL}/api/users/profile/${user.userId}`, {
+        caregiverEmail: newEmail
+      });
+      if (res.data.success) {
+        setUser({ ...user, caregiverEmail: newEmail });
+        alert("Caregiver linked successfully!");
+      }
+    } catch (e) {
+      alert("Failed to link caregiver.");
+    }
+  };
+
+  // 2. NOTIFY CAREGIVER (Functional Simulation)
   const notifyCaregiver = async () => {
     if(!user.caregiverEmail) return alert("No caregiver email set.");
+    setAlertSending(true);
     try {
       await axios.post(`${BASE_URL}/api/notifications/notify-caregiver`, {
         userId: user.userId,
-        type: 'email',
-        message: 'The user has manually triggered a check-in reminder.'
+        type: 'email'
       });
-      alert(`Notification sent to ${user.caregiverEmail}`);
-    } catch(e) { alert("Failed to send notification"); }
+      alert(`Alert sent to ${user.caregiverEmail}! (Simulation)`);
+    } catch(e) { 
+      alert("Failed to send notification"); 
+    }
+    setAlertSending(false);
   };
 
   const handleLogout = () => {
@@ -156,7 +174,7 @@ function App() {
     setEmail(''); setPassword('');
   };
 
-  // --- VIEW: AUTH ---
+  // --- VIEWS ---
   if (page === 'auth') {
     return (
       <div className="auth-container">
@@ -200,8 +218,6 @@ function App() {
     );
   }
 
-  // --- VIEW: MAIN APP ---
-  const takenCount = meds.filter(m => m.status === 'taken').length;
   const nextMed = meds.filter(m => m.status === 'pending').sort((a,b) => a.time.localeCompare(b.time))[0];
 
   return (
@@ -227,7 +243,7 @@ function App() {
         </button>
       </aside>
 
-      {/* Content */}
+      {/* Main Content */}
       <main className="main-wrapper">
         <div className="header-glass">
           <div className="date-display">
@@ -320,7 +336,7 @@ function App() {
                </div>
             </div>
 
-            {/* Caretaker Card */}
+            {/* Caretaker Card (Functional) */}
             <div className="glass-card" style={{gridColumn: 'span 2'}}>
                <div style={{display:'flex', justifyContent:'space-between', marginBottom:'1rem'}}>
                   <span className="label"><Icons.Heart /> Care Network</span>
@@ -331,14 +347,21 @@ function App() {
                  <>
                    <h3 style={{margin:'0 0 0.5rem 0'}}>{user.caregiverEmail}</h3>
                    <p className="sub-text">Receives alerts for missed doses.</p>
-                   <button className="action-btn" style={{marginTop:'1.5rem', width:'100%', background:'transparent', border:'1px solid var(--primary)'}} onClick={notifyCaregiver}>
-                     <Icons.Bell /> Send Test Alert
+                   <button 
+                    className="action-btn" 
+                    style={{marginTop:'1.5rem', width:'100%', background:'transparent', border:'1px solid var(--primary)'}} 
+                    onClick={notifyCaregiver}
+                    disabled={alertSending}
+                   >
+                     {alertSending ? 'Sending...' : <><Icons.Bell /> Send Test Alert</>}
                    </button>
                  </>
                ) : (
                  <div style={{textAlign:'center', padding:'1rem'}}>
                    <p className="sub-text">No caregiver linked.</p>
-                   <button className="action-btn" style={{marginTop:'0.5rem'}}>Link Caregiver</button>
+                   <button className="action-btn" style={{marginTop:'0.5rem'}} onClick={handleLinkCaregiver}>
+                     Link Caregiver
+                   </button>
                  </div>
                )}
             </div>
