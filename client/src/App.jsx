@@ -105,9 +105,31 @@ function App() {
   };
 
   const handleAddMed = async () => {
-    if(!medName || !medTime) return;
+    // 1. Validation: Check fields and alert the user if empty
+    if (!medName || !medTime) {
+      alert("Please enter both a Medicine Name and a Time.");
+      return;
+    }
+
+    // 2. Safety Check: Ensure the user object exists
+    if (!user || !user.userId) {
+      alert("User session not found. Please log out and log in again.");
+      return;
+    }
+
     try {
+      setLoading(true); // Show loading state on the button
       const date = new Date().toISOString().split('T')[0];
+      
+      // Debugging: See exactly what we are sending
+      console.log("Submitting Medication:", { 
+        userId: user.userId, 
+        name: medName, 
+        time: medTime, 
+        recurrence 
+      });
+
+      // API Call
       await axios.post(`${BASE_URL}/api/medications/add`, {
         userId: user.userId, 
         name: medName, 
@@ -115,12 +137,28 @@ function App() {
         date, 
         recurrence 
       });
+
+      // Success: Close modal and reset form
       setIsModalOpen(false);
-      setMedName(''); setMedTime(''); setRecurrence('daily');
-      refreshData(user.userId);
+      setMedName(''); 
+      setMedTime(''); 
+      setRecurrence('daily');
+      
+      // Refresh the list immediately
+      await refreshData(user.userId);
+      
+      // Trigger success animation
       setShowConfetti(true);
       setTimeout(() => setShowConfetti(false), 3000);
-    } catch (e) { alert("Failed to add medication"); }
+
+    } catch (e) { 
+      // Error Handling: Log it and show the user the real error message
+      console.error("Add Medicine Error:", e);
+      const errorMsg = e.response?.data?.message || e.message;
+      alert(`Failed to add medication: ${errorMsg}`);
+    } finally {
+      setLoading(false); // Enable the button again
+    }
   };
 
   const markTaken = async (id) => {
