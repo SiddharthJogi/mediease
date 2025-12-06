@@ -13,10 +13,57 @@ router.post('/register', async (req, res) => {
     const user = new User({ email, password, caregiverEmail });
     await user.save();
     console.log('User registered:', user.email);
-    res.status(201).json({ userId: user._id, caregiverEmail: user.caregiverEmail, streak: user.streak });
+    res.status(201).json({ 
+      userId: user._id, 
+      caregiverEmail: user.caregiverEmail, 
+      streak: user.streak || 0,
+      points: user.points || 0,
+      totalDiscount: user.totalDiscount || 0,
+      medications: user.medications || []
+    });
   } catch (err) {
     console.error('Register error:', err);
     res.status(400).json({ message: 'Registration failed', error: err.message });
+  }
+});
+
+// Get user profile
+router.get('/profile/:userId', async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId).select('-password');
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    res.status(200).json({
+      email: user.email,
+      caregiverEmail: user.caregiverEmail,
+      streak: user.streak || 0,
+      points: user.points || 0,
+      totalDiscount: user.totalDiscount || 0,
+      medications: user.medications || []
+    });
+  } catch (err) {
+    console.error('Get profile error:', err);
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+});
+
+// Update user profile medications
+router.put('/profile/:userId/medications', async (req, res) => {
+  try {
+    const { medications } = req.body;
+    const user = await User.findByIdAndUpdate(
+      req.params.userId,
+      { medications: medications || [] },
+      { new: true }
+    ).select('-password');
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    res.status(200).json({ medications: user.medications });
+  } catch (err) {
+    console.error('Update medications error:', err);
+    res.status(500).json({ message: 'Server error', error: err.message });
   }
 });
 
@@ -38,7 +85,14 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ message: 'Invalid credentials' });
     }
     console.log('Login successful for:', email);
-    res.status(200).json({ userId: user._id, caregiverEmail: user.caregiverEmail || '', streak: user.streak });
+    res.status(200).json({ 
+      userId: user._id, 
+      caregiverEmail: user.caregiverEmail || '', 
+      streak: user.streak || 0,
+      points: user.points || 0,
+      totalDiscount: user.totalDiscount || 0,
+      medications: user.medications || []
+    });
   } catch (err) {
     console.error('Login error:', err);
     res.status(500).json({ message: 'Server error', error: err.message });

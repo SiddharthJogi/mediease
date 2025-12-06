@@ -6,8 +6,17 @@ const userSchema = new mongoose.Schema({
   password: { type: String, required: true },
   caregiverEmail: { type: String },
   fcmToken: { type: String },
-  streak: { type: Number, default: 0 }, // Add streak field
-  lastStreakUpdate: { type: Date, default: Date.now } // Track last update
+  streak: { type: Number, default: 0 },
+  lastStreakUpdate: { type: Date, default: Date.now },
+  points: { type: Number, default: 0 }, // Points earned from streaks
+  totalDiscount: { type: Number, default: 0 }, // Total discount percentage available
+  medications: [{ // User's medication profile
+    name: { type: String, required: true },
+    recurrence: { type: String, enum: ['none', 'daily', 'weekly'], default: 'daily' },
+    time: { type: String, required: true },
+    dosage: { type: String },
+    notes: { type: String }
+  }]
 }, { timestamps: true });
 
 userSchema.pre('save', async function(next) {

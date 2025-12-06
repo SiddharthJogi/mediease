@@ -475,9 +475,10 @@
   box-shadow: var(--shadow);
   backdrop-filter: blur(15px);
   width: 100%;
-  max-width: 60rem;
+  max-width: 90rem;
   text-align: center;
   transition: opacity 0.3s ease;
+  margin: 0 auto;
 }
 
 .app.night .dashboard {
@@ -542,7 +543,8 @@ h1 {
 }
 
 .home-stats {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 1.5rem;
   justify-content: center;
   margin-top: 1.5rem;
@@ -650,15 +652,38 @@ h1 {
 }
 
 .input-section {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 1rem;
   margin-bottom: 2rem;
-  justify-content: center;
-  align-items: center;
+  align-items: end;
+  padding: 1.5rem;
+  background: rgba(255, 255, 255, 0.5);
+  border-radius: 1rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  width: 100%;
 }
 
-.med-input, .med-date, .time-input, .recurrence-select, .voice-button, .add-button {
+.app.night .input-section {
+  background: rgba(30, 41, 59, 0.5);
+  box-shadow: 0 4px 12px rgba(255, 255, 255, 0.1);
+}
+
+.input-section .add-button {
+  grid-column: span 1;
+}
+
+@media (min-width: 768px) {
+  .input-section {
+    grid-template-columns: 2fr 1.5fr 1.5fr 1.5fr auto auto;
+  }
+  
+  .input-section .add-button {
+    grid-column: span 1;
+  }
+}
+
+.med-input, .med-date, .time-input, .recurrence-select, .add-button {
   font-size: 1.25rem;
   padding: 0.75rem 1rem;
   border: 2px solid var(--day-text);
@@ -671,7 +696,7 @@ h1 {
   max-width: 15rem;
 }
 
-.app.night .med-input, .app.night .med-date, .app.night .time-input, .app.night .recurrence-select, .app.night .voice-button, .app.night .add-button {
+.app.night .med-input, .app.night .med-date, .app.night .time-input, .app.night .recurrence-select, .app.night .add-button {
   border-color: var(--night-text);
   background: #1e293b;
   color: var(--night-text);
@@ -685,24 +710,6 @@ h1 {
 .app.night .med-input:focus, .app.night .med-date:focus, .app.night .time-input:focus, .app.night .recurrence-select:focus {
   border-color: var(--night-accent);
   box-shadow: var(--glow-night);
-}
-
-.voice-button {
-  background: #8b5cf6;
-  color: #fff;
-  border: none;
-}
-
-.voice-button:hover {
-  background: #7c3aed;
-  transform: translateY(-3px);
-  box-shadow: var(--glow);
-}
-
-.app.night .voice-button:hover {
-  box-shadow: var(--glow-night);
-  border-color: var(--night-text);
-  border-radius: 0.75rem;
 }
 
 .add-button {
@@ -740,6 +747,63 @@ h1 {
   display: flex;
   flex-direction: column;
   align-items: center;
+  gap: 1rem;
+}
+
+.stats-grid {
+  display: flex;
+  gap: 1.5rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.stat-badge {
+  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+  padding: 1.5rem;
+  border-radius: 1rem;
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 120px;
+  transition: transform 0.3s ease;
+}
+
+.app.night .stat-badge {
+  background: linear-gradient(135deg, #1e40af 0%, #1e3a8a 100%);
+  box-shadow: var(--shadow-night);
+}
+
+.stat-badge:hover {
+  transform: translateY(-5px) scale(1.05);
+}
+
+.stat-icon {
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+}
+
+.stat-value {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--day-accent);
+  margin-bottom: 0.25rem;
+}
+
+.app.night .stat-value {
+  color: var(--night-accent);
+}
+
+.stat-label {
+  font-size: 0.9rem;
+  color: var(--day-text);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.app.night .stat-label {
+  color: var(--night-text);
 }
 
 .streak-text {
@@ -776,13 +840,16 @@ h1 {
 }
 
 .meds-section {
-  text-align: center;
+  text-align: left;
+  margin-top: 2rem;
+  width: 100%;
 }
 
 .meds-section h2 {
   font-size: 2rem;
   color: var(--day-accent);
   margin-bottom: 1.5rem;
+  text-align: center;
 }
 
 .app.night .meds-section h2 {
@@ -790,10 +857,12 @@ h1 {
 }
 
 .meds-container {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 1.5rem;
-  justify-content: center;
+  justify-items: stretch;
+  margin-top: 1rem;
+  width: 100%;
 }
 
 .med-card {
@@ -802,11 +871,11 @@ h1 {
   padding: 1.5rem;
   box-shadow: var(--shadow);
   width: 100%;
-  max-width: 20rem;
   transition: transform 0.3s ease, box-shadow 0.3s ease;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
+  min-height: 200px;
 }
 
 .app.night .med-card {
@@ -850,18 +919,26 @@ h1 {
 
 .med-details {
   text-align: left;
+  flex: 1;
 }
 
 .med-details h3 {
   font-size: 1.5rem;
   font-weight: 600;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.75rem;
+  color: var(--day-accent);
+  word-break: break-word;
+}
+
+.app.night .med-details h3 {
+  color: var(--night-accent);
 }
 
 .med-details p {
   font-size: 1rem;
-  margin: 0.25rem 0;
+  margin: 0.5rem 0;
   color: #4b5563;
+  line-height: 1.5;
 }
 
 .app.night .med-details p {
@@ -870,15 +947,16 @@ h1 {
 
 .taken-button {
   font-size: 1rem;
-  padding: 0.5rem 1rem;
+  padding: 0.75rem 1.5rem;
   background: var(--primary);
   color: #fff;
   border: none;
   border-radius: 0.5rem;
   cursor: pointer;
   transition: background 0.3s ease, transform 0.3s ease, box-shadow 0.3s ease;
-  align-self: flex-end;
-  margin-top: 1rem;
+  align-self: flex-start;
+  margin-top: auto;
+  width: 100%;
 }
 
 .taken-button:disabled {
@@ -918,4 +996,208 @@ h1 {
   color: var(--night-text);
   background: rgba(15, 23, 42, 0.9);
   box-shadow: var(--shadow-night);
+}
+
+.recent-meds-section {
+  margin: 2rem 0;
+  text-align: left;
+  width: 100%;
+}
+
+.recent-meds-section h2 {
+  font-size: 2rem;
+  color: var(--day-accent);
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+
+.app.night .recent-meds-section h2 {
+  color: var(--night-accent);
+}
+
+.taken-badge {
+  color: #059669;
+  font-weight: 600;
+  margin-top: 0.5rem;
+}
+
+.app.night .taken-badge {
+  color: #34d399;
+}
+
+.no-meds {
+  font-size: 1.25rem;
+  color: var(--day-text);
+  padding: 2rem;
+  text-align: center;
+  opacity: 0.7;
+}
+
+.app.night .no-meds {
+  color: var(--night-text);
+}
+
+.profile-section {
+  margin: 2rem 0;
+  padding: 1.5rem;
+  background: rgba(255, 255, 255, 0.5);
+  border-radius: 1rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.app.night .profile-section {
+  background: rgba(30, 41, 59, 0.5);
+  box-shadow: 0 4px 12px rgba(255, 255, 255, 0.1);
+}
+
+.profile-section h2 {
+  font-size: 1.75rem;
+  color: var(--day-accent);
+  margin-bottom: 1.5rem;
+  border-bottom: 2px solid var(--day-accent);
+  padding-bottom: 0.5rem;
+}
+
+.app.night .profile-section h2 {
+  color: var(--night-accent);
+  border-bottom-color: var(--night-accent);
+}
+
+.profile-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.5rem;
+  margin-top: 1rem;
+}
+
+.profile-stat-item {
+  display: flex;
+  flex-direction: column;
+  padding: 1.5rem;
+  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+  border-radius: 0.75rem;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s ease;
+}
+
+.app.night .profile-stat-item {
+  background: linear-gradient(135deg, #1e40af 0%, #1e3a8a 100%);
+  box-shadow: 0 4px 8px rgba(255, 255, 255, 0.1);
+}
+
+.profile-stat-item:hover {
+  transform: translateY(-3px);
+}
+
+.profile-stat-label {
+  font-size: 1rem;
+  color: var(--day-text);
+  margin-bottom: 0.5rem;
+  opacity: 0.8;
+}
+
+.app.night .profile-stat-label {
+  color: var(--night-text);
+}
+
+.profile-stat-value {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--day-accent);
+}
+
+.app.night .profile-stat-value {
+  color: var(--night-accent);
+}
+
+.profile-medications {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 1.5rem;
+  margin-top: 1rem;
+}
+
+.profile-med-card {
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  padding: 1.5rem;
+  border-radius: 0.75rem;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s ease;
+}
+
+.app.night .profile-med-card {
+  background: linear-gradient(135deg, #0c4a6e 0%, #075985 100%);
+  box-shadow: 0 4px 8px rgba(255, 255, 255, 0.1);
+}
+
+.profile-med-card:hover {
+  transform: translateY(-3px);
+}
+
+.profile-med-card h3 {
+  font-size: 1.5rem;
+  color: var(--day-accent);
+  margin-bottom: 1rem;
+}
+
+.app.night .profile-med-card h3 {
+  color: var(--night-accent);
+}
+
+.profile-med-card p {
+  font-size: 1rem;
+  margin: 0.5rem 0;
+  color: var(--day-text);
+}
+
+.app.night .profile-med-card p {
+  color: var(--night-text);
+}
+
+.discount-info {
+  padding: 1rem;
+}
+
+.discount-info p {
+  font-size: 1.1rem;
+  margin: 1rem 0;
+  line-height: 1.6;
+}
+
+.discount-tiers {
+  list-style: none;
+  padding: 0;
+  margin: 1rem 0;
+}
+
+.discount-tiers li {
+  font-size: 1.1rem;
+  padding: 0.75rem;
+  margin: 0.5rem 0;
+  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+  border-radius: 0.5rem;
+  border-left: 4px solid var(--day-accent);
+}
+
+.app.night .discount-tiers li {
+  background: linear-gradient(135deg, #1e40af 0%, #1e3a8a 100%);
+  border-left-color: var(--night-accent);
+}
+
+.current-discount {
+  font-size: 1.5rem;
+  text-align: center;
+  padding: 1rem;
+  background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+  border-radius: 0.75rem;
+  margin-top: 1rem;
+}
+
+.app.night .current-discount {
+  background: linear-gradient(135deg, #065f46 0%, #064e3b 100%);
+}
+
+.current-discount strong {
+  color: var(--primary);
+  font-size: 1.75rem;
 }
