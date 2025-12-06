@@ -235,4 +235,38 @@ router.post('/migrate/decrypt-names', async (req, res) => {
   }
 });
 
+// ... existing code ...
+
+// UPDATE Medication
+router.put('/update/:id', async (req, res) => {
+  try {
+    const { name, time, recurrence, date } = req.body;
+    const updatedMed = await Medication.findByIdAndUpdate(
+      req.params.id,
+      { name, time, recurrence, date }, 
+      { new: true }
+    );
+    // Re-encrypt/decrypt logic handled by helper if needed, 
+    // but standard update returns the doc. 
+    // Ensure we run it through your decrypt helper before sending back.
+    const medObj = ensureDecryptedName(updatedMed);
+    res.status(200).json(medObj);
+  } catch (err) {
+    console.error("Update error:", err);
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+});
+
+// DELETE Medication
+router.delete('/delete/:id', async (req, res) => {
+  try {
+    await Medication.findByIdAndDelete(req.params.id);
+    res.status(200).json({ message: 'Medication deleted' });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+});
+
+module.exports = router;
+
 module.exports = router;
