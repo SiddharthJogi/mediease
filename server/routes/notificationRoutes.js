@@ -1,45 +1,48 @@
-/* routes/notificationRoutes.js */
 const express = require('express');
 const router = express.Router();
 const nodemailer = require('nodemailer');
 const User = require('../models/User');
 
-// --- CONFIGURATION ---
-const EMAIL_USER = process.env.EMAIL_USER;
-const EMAIL_PASS = process.env.EMAIL_PASS;
-
-// Email Transporter
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: EMAIL_USER,
-    pass: EMAIL_PASS
-  }
-});
+// --- CRITICAL FIX: Define transporter inside the route or use a getter function.
+// Since it's only used here, defining it here is okay if EMAIL_USER is loaded early.
 
 // 1. Notify Caregiver Route
 router.post('/notify-caregiver', async (req, res) => {
   const { userId, type, message } = req.body;
   
+  const EMAIL_USER = process.env.EMAIL_USER;
+  const EMAIL_PASS = process.env.EMAIL_PASS;
+
   console.log(`[ALERT START] Attempting to notify caregiver for User ID: ${userId}`);
 
   try {
-    if (!EMAIL_USER || !EMAIL_PASS) {
-      throw new Error("Missing Email Credentials in Environment Variables");
+    // 1. Check Credentials
+    if (!EMAIL_USER || !EMAIL_PASS || EMAIL_USER.includes('your-')) {
+      console.error("Missing/Generic Email Credentials.");
+      return res.status(500).json({ message: 'Server Misconfiguration: Email credentials not loaded.' });
     }
+    
+    // 2. Re-create transporter here to be sure credentials are fresh
+    const transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: { user: EMAIL_USER, pass: EMAIL_PASS }
+        // We can add secure: true, port: 465 if Render's default port fails, 
+        // but let's try this first.
+    });
 
+
+    // 3. Find User
     const user = await User.findById(userId);
     if (!user || !user.caregiverEmail) {
-      console.log("[ALERT FAIL] No caregiver linked.");
       return res.status(400).json({ message: 'Caregiver not linked' });
     }
 
     const subject = `Ez-Med Alert: ${user.email} needs attention`;
     const body = message || `The user ${user.email} has missed a medication or requested assistance.`;
 
-    // SEND EMAIL
+    // 4. SEND EMAIL
     const info = await transporter.sendMail({
-      from: `"Ez-Med System" <${EMAIL_USER}>`, // <--- FIX: Must match auth user
+      from: `"Ez-Med System" <${EMAIL_USER}>`, 
       to: user.caregiverEmail,
       subject: subject,
       text: body
@@ -49,10 +52,20 @@ router.post('/notify-caregiver', async (req, res) => {
     res.status(200).json({ success: true, message: 'Caregiver notified' });
 
   } catch (error) {
-    console.error('[ALERT ERROR] Failed to send email:', error.message);
-    // Send 500 so frontend knows it failed
-    res.status(500).json({ success: false, error: error.message });
+    // This catches authentication errors (incorrect password) and connection timeouts
+    console.error('[ALERT ERROR] Failed to send email:', error);
+    if (error.code === 'EENVELOPE') {
+       return res.status(500).json({ success: false, error: 'Email configuration error (Sender/Recipient)' });
+    }
+    res.status(500).json({ success: false, error: 'SMTP Timeout or Auth Failure. Check App Password.' });
   }
 });
+
+// 2. Automated Missed Dose Check (Mock for now)
+router.post('/check-missed', async (req, res) => {
+  console.log('[CHECK] Checking for missed medications...');
+  res.status(200).json({ message: 'Checked', missed: 0 });
+});
+
 
 module.exports = router;

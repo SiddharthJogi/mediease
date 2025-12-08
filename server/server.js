@@ -1,8 +1,12 @@
 const express = require('express');
+const dotenv = require('dotenv');
+
+// 1. Load environment variables first!
+dotenv.config(); 
+
 const mongoose = require('mongoose');
 const cors = require('cors');
-const dotenv = require('dotenv');
-// const admin = require('firebase-admin'); // <--- Commented out
+//const admin = require('firebase-admin');
 const { Server } = require('socket.io');
 const http = require('http');
 const bcrypt = require('bcrypt');
@@ -12,7 +16,6 @@ const userRoutes = require('./routes/userRoutes');
 const medicationRoutes = require('./routes/medicationRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 
-dotenv.config();
 
 const app = express();
 const server = http.createServer(app);
