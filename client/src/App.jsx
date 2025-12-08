@@ -94,13 +94,40 @@ function App() {
 
   // --- HELPER FUNCTIONS ---
   
-  // Open Modal for ADDING
+ // --- NEW HELPER FUNCTIONS ---
+
+  // 1. Logic for Link Caregiver Button
+  const handleLinkCaregiver = async () => {
+    const newEmail = prompt("Please enter the Caregiver's email address:");
+    if (!newEmail) return; // User cancelled
+
+    try {
+      // Calls the new route we just added
+      const res = await axios.put(`${BASE_URL}/api/users/profile/${user.userId}`, {
+        caregiverEmail: newEmail
+      });
+      
+      if (res.data.success) {
+        // Update local state immediately
+        const updatedUser = { ...user, caregiverEmail: newEmail };
+        setUser(updatedUser);
+        localStorage.setItem('mediease_user', JSON.stringify(updatedUser));
+        alert("Caregiver linked successfully!");
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Failed to link caregiver. Check console.");
+    }
+  };
+
+  // 2. Logic for Add New Button (Cleans state first)
   const openAddModal = () => {
-    setEditMode(false);
-    setSelectedMedId(null);
-    setMedName('');
-    setMedTime('');
+    setMedName('');      // Reset form
+    setMedTime('');      // Reset form
     setRecurrence('daily');
+    // Ensure you are not in "Edit Mode" if you implemented that previously
+    // setEditMode(false); 
+    // setSelectedMedId(null);
     setIsModalOpen(true);
   };
 
@@ -401,7 +428,7 @@ function App() {
                ) : (
                  <div style={{textAlign:'center', padding:'1rem'}}>
                    <p className="sub-text">No caregiver linked.</p>
-                   <button className="action-btn" style={{marginTop:'0.5rem'}}>Link Caregiver</button>
+                   <button className="action-btn" style={{marginTop:'0.5rem'}} onClick={handleLinkCaregiver}>Link Caregiver</button>
                  </div>
                )}
             </div>

@@ -235,7 +235,7 @@ body {
 
 .action-btn {
   margin-left: auto;
-  padding: 8px 16px;
+  padding: 10px 18px;
   background: var(--primary);
   color: white;
   border: none;
@@ -243,6 +243,7 @@ body {
   font-weight: 600;
   cursor: pointer;
   transition: opacity 0.2s;
+  font: Inter, sans-serif;
 }
 .action-btn:hover { opacity: 0.9; box-shadow: 0 0 15px var(--primary-glow); }
 

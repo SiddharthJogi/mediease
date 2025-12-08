@@ -138,4 +138,38 @@ router.put('/profile/:userId', async (req, res) => {
   }
 });
 
+// Add this to server/routes/userRoutes.js
+
+// Update User Profile (Generic - for Caregiver Email)
+router.put('/profile/:userId', async (req, res) => {
+  try {
+    const { caregiverEmail } = req.body;
+    const updates = {};
+    if (caregiverEmail !== undefined) updates.caregiverEmail = caregiverEmail;
+
+    const user = await User.findByIdAndUpdate(
+      req.params.userId,
+      { $set: updates },
+      { new: true }
+    ).select('-password');
+
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    res.status(200).json({ 
+      success: true, 
+      user: {
+        email: user.email,
+        caregiverEmail: user.caregiverEmail,
+        streak: user.streak,
+        points: user.points,
+        totalDiscount: user.totalDiscount,
+        medications: user.medications
+      }
+    });
+  } catch (err) {
+    console.error('Update profile error:', err);
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+});
+
 module.exports = router;
