@@ -187,16 +187,26 @@ router.put('/update/:id', async (req, res) => {
 });
 
 
-// ==========================================
-// 5. DELETE Medication (New)
-// ==========================================
+// server/routes/medicationRoutes.js
+
+// ... existing code ...
+
+// 5. DELETE Medication (Fixed to update User profile too)
 router.delete('/delete/:id', async (req, res) => {
   try {
     const med = await Medication.findByIdAndDelete(req.params.id);
     if (!med) return res.status(404).json({ message: 'Medication not found' });
     
-    // Optional: Remove from User profile array as well if you want strict sync
-    // await User.updateOne({ _id: med.userId }, { $pull: { medications: { name: med.name } } });
+    // KEY FIX: Remove from User's medications array
+    // This assumes your User model has a medications array storing objects with a matching name or ID.
+    // If your User schema stores simplified meds without IDs, we match by name & time.
+    // Ideally, store the medication ID in the User schema for reliable deletion.
+    
+    // Option A: If User.medications stores just Name/Time (based on your schema)
+    await User.updateOne(
+      { _id: med.userId }, 
+      { $pull: { medications: { name: med.name, time: med.time } } }
+    );
 
     res.status(200).json({ message: 'Medication deleted successfully' });
   } catch (err) {

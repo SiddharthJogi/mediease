@@ -6,6 +6,7 @@ import Sidebar from './components/Sidebar';
 import Auth from './components/Auth';
 import Dashboard from './components/Dashboard';
 import Profile from './components/Profile';
+import { commonMedicines } from './data/indianMedicines';
 import './App.css';
 
 function App() {
@@ -114,11 +115,24 @@ function App() {
   };
 
   const handleDeleteMed = async (id) => {
-    if(!window.confirm("Delete?")) return;
+    if(!window.confirm("Are you sure you want to permanently delete this medication?")) return;
     try {
       await axios.delete(`${BASE_URL}/api/medications/delete/${id}`);
-      refreshData(user.userId);
-    } catch (e) { alert("Failed to delete"); }
+      
+      // FIX: Refresh BOTH Meds (Dashboard) and User Profile (Profile Tab)
+      await refreshData(user.userId); 
+      
+      // OPTIONAL: Manually filter the local state for instant feedback before the API returns
+      // setMeds(prev => prev.filter(m => m._id !== id));
+      // setUser(prev => ({
+      //   ...prev,
+      //   medications: prev.medications.filter(...) // Complex without IDs in user profile
+      // }));
+      
+    } catch (e) { 
+      console.error("Delete failed:", e);
+      alert("Failed to delete. Check console."); 
+    }
   };
 
   const markTaken = async (id) => {
@@ -194,7 +208,25 @@ function App() {
         
         {(modalType === 'addMed' || modalType === 'editMed') && (
           <div style={{display:'flex', flexDirection:'column', gap:'1.25rem'}}>
-            <div><label className="label" style={{marginBottom:'8px', display:'block'}}>Name</label><input className="input-modern" placeholder="e.g. Amoxicillin" value={medName} onChange={e => setMedName(e.target.value)} autoFocus /></div>
+            {/* Inside the Modal, replace the existing Name input div with this: */}
+
+          <div>
+            <label className="label" style={{marginBottom:'8px', display:'block'}}>Medicine Name</label>
+            <input 
+              className="input-modern" 
+              placeholder="e.g. Dolo 650" 
+              value={medName} 
+              onChange={e => setMedName(e.target.value)} 
+              list="med-suggestions" // <--- Connects to the datalist
+              autoFocus 
+            />
+            {/* The Data List for Autocomplete */}
+            <datalist id="med-suggestions">
+              {commonMedicines.map((med, index) => (
+                <option key={index} value={med} />
+              ))}
+            </datalist>
+          </div>
             <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'1rem'}}>
               <div><label className="label" style={{marginBottom:'8px', display:'block'}}>Time</label><input className="input-modern" type="time" value={medTime} onChange={e => setMedTime(e.target.value)} /></div>
               <div><label className="label" style={{marginBottom:'8px', display:'block'}}>Recurrence</label><select className="input-modern" value={recurrence} onChange={e => setRecurrence(e.target.value)}><option value="daily">Daily</option><option value="weekly">Weekly</option></select></div>

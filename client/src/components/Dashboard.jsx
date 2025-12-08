@@ -1,21 +1,82 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Icons } from './Icons';
 
 const Dashboard = ({ meds, openAddModal, markTaken, openEditModal, handleDeleteMed }) => {
-  const nextMed = meds.filter(m => m.status === 'pending').sort((a,b) => a.time.localeCompare(b.time))[0];
+  // 1. Logic to find the next pending medication
+  const nextMed = meds
+    .filter(m => m.status === 'pending')
+    .sort((a, b) => a.time.localeCompare(b.time))[0];
+
+  // 2. Countdown State
+  const [timeLeft, setTimeLeft] = useState('');
+
+  // 3. Timer Logic
+  useEffect(() => {
+    if (!nextMed) {
+      setTimeLeft('');
+      return;
+    }
+
+    const calculateTimeLeft = () => {
+      const now = new Date();
+      const [hours, minutes] = nextMed.time.split(':').map(Number);
+      const doseTime = new Date();
+      doseTime.setHours(hours, minutes, 0, 0);
+
+      // If time has passed for today but it's still 'pending', it's overdue
+      if (doseTime < now) {
+        setTimeLeft('Overdue');
+        return;
+      }
+
+      const diff = doseTime - now;
+      const h = Math.floor(diff / (1000 * 60 * 60));
+      const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      
+      setTimeLeft(`${h}h ${m}m remaining`);
+    };
+
+    calculateTimeLeft(); // Run immediately
+    const timerId = setInterval(calculateTimeLeft, 60000); // Update every minute
+
+    return () => clearInterval(timerId); // Cleanup
+  }, [nextMed]);
 
   return (
     <motion.div className="bento-grid" initial={{opacity:0}} animate={{opacity:1}}>
+      
       {/* Hero Card */}
       <div className="glass-card hero-card">
-        <span className="label">Next Scheduled Dose</span>
-        <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-end'}}>
+        <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start'}}>
+          <span className="label">Next Scheduled Dose</span>
+          
+          {/* TIMER BADGE */}
+          {nextMed && timeLeft && (
+            <div style={{
+              background: timeLeft === 'Overdue' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(99, 102, 241, 0.2)',
+              color: timeLeft === 'Overdue' ? '#ef4444' : '#a5b4fc',
+              padding: '4px 12px',
+              borderRadius: '12px',
+              fontSize: '0.85rem',
+              fontWeight: '600',
+              border: `1px solid ${timeLeft === 'Overdue' ? '#ef4444' : '#6366f1'}`
+            }}>
+              {timeLeft === 'Overdue' ? '⚠️ Overdue' : `⏳ ${timeLeft}`}
+            </div>
+          )}
+        </div>
+
+        <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-end', marginTop:'1rem'}}>
           <div>
-            <h2 style={{fontSize:'2.5rem', margin:'0.5rem 0 0 0', fontWeight:'700'}}>
+            <h2 style={{fontSize:'2.5rem', margin:'0', fontWeight:'700'}}>
               {nextMed ? nextMed.name : "All Clear"}
             </h2>
-            <p className="sub-text">{nextMed ? `At ${nextMed.time}` : "You've taken all your medications for today."}</p>
+            <p className="sub-text">
+              {nextMed 
+                ? `Scheduled for ${nextMed.time} • ${nextMed.dosage || 'Standard Dose'}` 
+                : "You've taken all your medications for today."}
+            </p>
           </div>
           {nextMed && (
             <button className="action-btn" style={{padding:'12px 24px'}} onClick={() => markTaken(nextMed._id)}>
