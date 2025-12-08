@@ -1,52 +1,58 @@
+/* routes/notificationRoutes.js */
 const express = require('express');
 const router = express.Router();
-const nodemailer = require('nodemailer'); // Import nodemailer
+const nodemailer = require('nodemailer');
 const User = require('../models/User');
 
-// --- EMAIL CONFIGURATION ---
-// We create a "transporter" that logs into your Gmail
+// --- CONFIGURATION ---
+const EMAIL_USER = process.env.EMAIL_USER;
+const EMAIL_PASS = process.env.EMAIL_PASS;
+
+// Email Transporter
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
-    user: process.env.EMAIL_USER, // Defined in .env or Render
-    pass: process.env.EMAIL_PASS  // Your App Password (not login password)
+    user: EMAIL_USER,
+    pass: EMAIL_PASS
   }
 });
 
-// 1. Notify Caregiver (Real Email)
+// 1. Notify Caregiver Route
 router.post('/notify-caregiver', async (req, res) => {
-  const { userId, type } = req.body;
+  const { userId, type, message } = req.body;
   
+  console.log(`[ALERT START] Attempting to notify caregiver for User ID: ${userId}`);
+
   try {
+    if (!EMAIL_USER || !EMAIL_PASS) {
+      throw new Error("Missing Email Credentials in Environment Variables");
+    }
+
     const user = await User.findById(userId);
     if (!user || !user.caregiverEmail) {
+      console.log("[ALERT FAIL] No caregiver linked.");
       return res.status(400).json({ message: 'Caregiver not linked' });
     }
 
-    // Email Content
-    const mailOptions = {
-      from: `"Ez-Med Alert System" <${process.env.EMAIL_USER}>`,
+    const subject = `Ez-Med Alert: ${user.email} needs attention`;
+    const body = message || `The user ${user.email} has missed a medication or requested assistance.`;
+
+    // SEND EMAIL
+    const info = await transporter.sendMail({
+      from: `"Ez-Med System" <${EMAIL_USER}>`, // <--- FIX: Must match auth user
       to: user.caregiverEmail,
-      subject: `⚠️ Ez-Med Alert: Assistance Needed for ${user.email}`,
-      text: `Hello,\n\nThe user ${user.email} has triggered a manual alert from their Ez-Med dashboard.\n\nPlease check on them.\n\n- Ez-Med Team`
-    };
+      subject: subject,
+      text: body
+    });
 
-    // Send the email
-    await transporter.sendMail(mailOptions);
-    console.log(`[EMAIL SENT] To: ${user.caregiverEmail} | User: ${user.email}`);
-
-    res.status(200).json({ success: true, message: 'Email sent successfully' });
+    console.log(`[ALERT SUCCESS] Email sent. Message ID: ${info.messageId}`);
+    res.status(200).json({ success: true, message: 'Caregiver notified' });
 
   } catch (error) {
-    console.error("Email Error:", error);
-    res.status(500).json({ success: false, error: 'Failed to send email' });
+    console.error('[ALERT ERROR] Failed to send email:', error.message);
+    // Send 500 so frontend knows it failed
+    res.status(500).json({ success: false, error: error.message });
   }
-});
-
-// 2. Check Missed Meds (Mock for now, can be upgraded later)
-router.post('/check-missed', async (req, res) => {
-  console.log('[CHECK] Checking for missed medications...');
-  res.status(200).json({ message: 'Checked', missed: 0 });
 });
 
 module.exports = router;
