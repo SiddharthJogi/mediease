@@ -4,252 +4,181 @@ const crypto = require('crypto');
 const Medication = require('../models/Medication');
 const User = require('../models/User');
 
-// Helper to decrypt existing encrypted medication names
+// --- HELPER: Encryption/Decryption ---
 const decryptName = (encryptedName) => {
   try {
-    if (!encryptedName || typeof encryptedName !== 'string') {
-      return encryptedName;
-    }
-    // Check if it looks like encrypted data (long hex string, 64+ chars)
-    if (!/^[0-9a-f]{64,}$/i.test(encryptedName)) {
-      // Not encrypted, return as-is
-      return encryptedName;
-    }
+    if (!encryptedName || typeof encryptedName !== 'string') return encryptedName;
+    if (!/^[0-9a-f]{64,}$/i.test(encryptedName)) return encryptedName;
     
-    // Try to decrypt using the old encryption keys
     const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || 'your32bytesecretkey1234567890123';
     const ENCRYPTION_IV = process.env.ENCRYPTION_IV || 'your16byteivhere';
     
     const decipher = crypto.createDecipheriv('aes-256-cbc', Buffer.from(ENCRYPTION_KEY), Buffer.from(ENCRYPTION_IV));
     let decrypted = decipher.update(encryptedName, 'hex', 'utf8');
     decrypted += decipher.final('utf8');
-    console.log('Decrypted medication name');
     return decrypted;
   } catch (err) {
-    console.error('Decryption failed, returning original:', err.message);
-    // If decryption fails, return original (might be plain text or corrupted)
+    console.error('Decryption failed:', err.message);
     return encryptedName;
   }
 };
 
-// Helper to ensure medication name is decrypted
 const ensureDecryptedName = (med) => {
   const medObj = med.toObject ? med.toObject() : med;
-  if (medObj.name) {
-    medObj.name = decryptName(medObj.name);
-  }
+  if (medObj.name) medObj.name = decryptName(medObj.name);
   return medObj;
 };
 
+// --- HELPER: Date String (YYYY-MM-DD) ---
+const getTodayString = () => new Date().toISOString().split('T')[0];
+
+
+// ==========================================
+// 1. GET User Medications (Dynamic Reset)
+// ==========================================
+router.get('/user/:userId', async (req, res) => {
+  try {
+    const today = getTodayString();
+    const meds = await Medication.find({ userId: req.params.userId });
+    
+    // Transform data: Calculate status dynamically
+    const dynamicMeds = meds.map(med => {
+      const medObj = med.toObject();
+      medObj.name = decryptName(medObj.name);
+
+      // Check history: Has this specific medicine been taken TODAY?
+      // Note: 'history' field must exist in Medication model (see previous step)
+      const history = med.history || [];
+      const takenToday = history.some(entry => entry.date === today && entry.status === 'taken');
+      
+      // Force the status sent to frontend based on today's history
+      // If taken today -> 'taken'. If not -> 'pending'.
+      medObj.status = takenToday ? 'taken' : 'pending';
+      
+      return medObj;
+    });
+
+    console.log(`Fetched ${dynamicMeds.length} meds for user ${req.params.userId}. Date: ${today}`);
+    res.status(200).json(dynamicMeds);
+  } catch (err) {
+    console.error('Fetch meds error:', err);
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+});
+
+
+// ==========================================
+// 2. ADD Medication
+// ==========================================
 router.post('/add', async (req, res) => {
   const { userId, name, date, time, recurrence } = req.body;
-  console.log('Adding med:', { userId, name, date, time, recurrence });
   if (!userId || !name || !date || !time) {
-    console.log('Missing fields:', { userId, name, date, time, recurrence });
-    return res.status(400).json({ message: 'All fields (userId, name, date, time) are required' });
+    return res.status(400).json({ message: 'All fields are required' });
   }
   try {
-    const med = new Medication({ userId, name, date, time, recurrence });
-    console.log('Saving med to DB:', med);
+    const med = new Medication({ 
+      userId, 
+      name, 
+      date, 
+      time, 
+      recurrence,
+      history: [] // Initialize empty history
+    });
     await med.save();
     
-    // Add to user's medication profile if it doesn't exist
+    // Sync with User Profile (Optional backup)
     const user = await User.findById(userId);
     if (user) {
-      // Check if all medicines for today are already taken
-      const today = new Date().toISOString().split('T')[0];
-      const medsToday = await Medication.find({
-        userId,
-        $or: [
-          { date: today },
-          { recurrence: 'daily' }
-        ]
-      });
-      const allTakenToday = medsToday.length > 0 && medsToday.every(m => m.status === 'taken');
-      
-      // If all medicines are taken and we're adding a new one, decrease streak to prevent exploitation
-      if (allTakenToday && (date === today || recurrence === 'daily')) {
-        if (user.streak > 0) {
-          user.streak = Math.max(0, user.streak - 1);
-          // Also reduce points proportionally
-          user.points = Math.max(0, (user.points || 0) - 10);
-          // Recalculate discount
-          user.totalDiscount = Math.min(Math.floor((user.points || 0) / 100), 20);
-          await user.save();
-          console.log('Streak decreased due to new medicine after completion. New streak:', user.streak);
-        }
-      }
-      
-      const medExists = user.medications.some(m => m.name === name && m.time === time);
-      if (!medExists && (recurrence === 'daily' || recurrence === 'weekly')) {
-        user.medications.push({
-          name,
-          recurrence: recurrence || 'daily',
-          time,
-          dosage: '',
-          notes: ''
-        });
-        await user.save();
-        console.log('Added to user profile:', name);
-      }
+      user.medications.push({ name, recurrence, time });
+      await user.save();
     }
     
-    console.log('Medicine added successfully:', med);
     const medObj = ensureDecryptedName(med);
     res.status(201).json(medObj);
   } catch (err) {
-    console.error('Add med error:', err.stack || err.message);
+    console.error('Add med error:', err);
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 });
 
-router.get('/user/:userId', async (req, res) => {
-  console.log('Fetching meds for user:', req.params.userId);
-  try {
-    const meds = await Medication.find({ userId: req.params.userId });
-    // Decrypt any existing encrypted names
-    const decryptedMeds = meds.map(med => ensureDecryptedName(med));
-    console.log('Fetched meds:', decryptedMeds.length, 'medications');
-    res.status(200).json(decryptedMeds);
-  } catch (err) {
-    console.error('Fetch meds error:', err.stack || err.message);
-    res.status(500).json({ message: 'Server error', error: err.message });
-  }
-});
 
+// ==========================================
+// 3. MARK TAKEN (History Logic)
+// ==========================================
 router.post('/:id/status', async (req, res) => {
-  console.log('Marking med as taken:', req.params.id);
   try {
-    const med = await Medication.findByIdAndUpdate(req.params.id, { status: 'taken' }, { new: true });
-    if (!med) {
-      console.log('Medicine not found:', req.params.id);
-      return res.status(404).json({ message: 'Medication not found' });
-    }
-    console.log('Medicine marked taken:', med);
-
-    // Update streak and points logic - only once per day
-    const user = await User.findById(med.userId);
-    const today = new Date().toISOString().split('T')[0];
-    const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
-    const lastUpdateDate = user.lastStreakUpdate ? user.lastStreakUpdate.toISOString().split('T')[0] : null;
+    const medId = req.params.id;
+    const today = getTodayString();
     
-    // Only process streak if we haven't already updated it today
-    if (lastUpdateDate !== today) {
-      const medsToday = await Medication.find({ 
-        userId: med.userId, 
-        $or: [
-          { date: today },
-          { recurrence: 'daily' }
-        ]
-      });
-      const allTakenToday = medsToday.every(m => m.status === 'taken' || m._id.toString() === med._id.toString());
+    const med = await Medication.findById(medId);
+    if (!med) return res.status(404).json({ message: 'Medication not found' });
 
-      if (allTakenToday) {
-        // Check if this is a consecutive day
-        if (lastUpdateDate === yesterday) {
-          // Consecutive day - increase streak
-          user.streak += 1;
-        } else if (lastUpdateDate && lastUpdateDate !== yesterday) {
-          // Not consecutive - reset streak
-          user.streak = 1;
-        } else {
-          // First time - start streak
-          user.streak = 1;
-        }
-        
-        // Award points (10 points per day)
-        const pointsEarned = 10;
-        user.points = (user.points || 0) + pointsEarned;
-        
-        // Calculate discount: 1% discount per 100 points (max 20%)
-        const discountPercent = Math.min(Math.floor((user.points || 0) / 100), 20);
-        user.totalDiscount = discountPercent;
-        
-        // Mark that we've updated the streak for today
+    // Check if already taken today
+    const history = med.history || [];
+    const alreadyTaken = history.some(h => h.date === today);
+    
+    if (!alreadyTaken) {
+      // 1. Update Medication History
+      med.history.push({ date: today, status: 'taken' });
+      // Update basic stats
+      if (!med.stats) med.stats = {};
+      med.stats.totalTaken = (med.stats.totalTaken || 0) + 1;
+      await med.save();
+
+      // 2. Update User Streak & Points (Only once per day globally)
+      const user = await User.findById(med.userId);
+      const userLastUpdate = user.lastStreakUpdate ? user.lastStreakUpdate.toISOString().split('T')[0] : null;
+
+      if (userLastUpdate !== today) {
+        user.streak = (user.streak || 0) + 1;
+        user.points = (user.points || 0) + 10;
         user.lastStreakUpdate = new Date();
+        user.totalDiscount = Math.min(Math.floor(user.points / 100), 20); // Cap at 20%
         await user.save();
-        console.log('Streak updated:', user.streak, 'Points:', user.points, 'Discount:', user.totalDiscount + '%');
       }
+      
+      const medObj = ensureDecryptedName(med);
+      res.status(200).json({ 
+        ...medObj, 
+        status: 'taken', 
+        user: { streak: user.streak, points: user.points } 
+      });
+    } else {
+      // It's already taken, just return success
+      const medObj = ensureDecryptedName(med);
+      res.status(200).json({ ...medObj, status: 'taken' });
     }
 
-    const medObj = ensureDecryptedName(med);
-    res.status(200).json({ ...medObj, user: { streak: user.streak, points: user.points, totalDiscount: user.totalDiscount } });
   } catch (err) {
-    console.error('Mark taken error:', err.stack || err.message);
+    console.error('Status update error:', err);
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 });
 
-// Get recently taken medicines
-router.get('/recent/:userId', async (req, res) => {
-  try {
-    const limit = parseInt(req.query.limit) || 10;
-    const recentMeds = await Medication.find({ 
-      userId: req.params.userId, 
-      status: 'taken' 
-    })
-    .sort({ updatedAt: -1 })
-    .limit(limit);
-    // Decrypt any existing encrypted names
-    const decryptedRecentMeds = recentMeds.map(med => ensureDecryptedName(med));
-    res.status(200).json(decryptedRecentMeds);
-  } catch (err) {
-    console.error('Fetch recent meds error:', err.stack || err.message);
-    res.status(500).json({ message: 'Server error', error: err.message });
-  }
-});
 
-// Migration endpoint to decrypt all existing medication names
-router.post('/migrate/decrypt-names', async (req, res) => {
-  try {
-    console.log('Starting migration to decrypt medication names...');
-    const allMeds = await Medication.find({});
-    let updated = 0;
-    let errors = 0;
-    
-    for (const med of allMeds) {
-      try {
-        const decryptedName = decryptName(med.name);
-        // Only update if name was actually encrypted and decrypted
-        if (decryptedName !== med.name && /^[0-9a-f]{64,}$/i.test(med.name)) {
-          med.name = decryptedName;
-          await med.save();
-          updated++;
-        }
-      } catch (err) {
-        console.error(`Error decrypting med ${med._id}:`, err.message);
-        errors++;
-      }
-    }
-    
-    console.log(`Migration complete. Updated: ${updated}, Errors: ${errors}`);
-    res.status(200).json({ 
-      message: 'Migration complete', 
-      updated, 
-      errors,
-      total: allMeds.length 
-    });
-  } catch (err) {
-    console.error('Migration error:', err.stack || err.message);
-    res.status(500).json({ message: 'Migration failed', error: err.message });
-  }
-});
-
-// ... existing code ...
-
-// UPDATE Medication
+// ==========================================
+// 4. UPDATE Medication (New)
+// ==========================================
 router.put('/update/:id', async (req, res) => {
   try {
     const { name, time, recurrence, date } = req.body;
+    
+    // Find and update
     const updatedMed = await Medication.findByIdAndUpdate(
       req.params.id,
-      { name, time, recurrence, date }, 
-      { new: true }
+      { $set: { name, time, recurrence, date } }, 
+      { new: true } // Return the updated document
     );
-    // Re-encrypt/decrypt logic handled by helper if needed, 
-    // but standard update returns the doc. 
-    // Ensure we run it through your decrypt helper before sending back.
+
+    if (!updatedMed) return res.status(404).json({ message: 'Medication not found' });
+
     const medObj = ensureDecryptedName(updatedMed);
+    
+    // We calculate status again to ensure UI consistency
+    const today = getTodayString();
+    const takenToday = (updatedMed.history || []).some(h => h.date === today && h.status === 'taken');
+    medObj.status = takenToday ? 'taken' : 'pending';
+
     res.status(200).json(medObj);
   } catch (err) {
     console.error("Update error:", err);
@@ -257,16 +186,23 @@ router.put('/update/:id', async (req, res) => {
   }
 });
 
-// DELETE Medication
+
+// ==========================================
+// 5. DELETE Medication (New)
+// ==========================================
 router.delete('/delete/:id', async (req, res) => {
   try {
-    await Medication.findByIdAndDelete(req.params.id);
-    res.status(200).json({ message: 'Medication deleted' });
+    const med = await Medication.findByIdAndDelete(req.params.id);
+    if (!med) return res.status(404).json({ message: 'Medication not found' });
+    
+    // Optional: Remove from User profile array as well if you want strict sync
+    // await User.updateOne({ _id: med.userId }, { $pull: { medications: { name: med.name } } });
+
+    res.status(200).json({ message: 'Medication deleted successfully' });
   } catch (err) {
+    console.error("Delete error:", err);
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 });
-
-module.exports = router;
 
 module.exports = router;
