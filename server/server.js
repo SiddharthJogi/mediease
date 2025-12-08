@@ -2,7 +2,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const dotenv = require('dotenv');
-const admin = require('firebase-admin');
+// const admin = require('firebase-admin'); // <--- Commented out
 const { Server } = require('socket.io');
 const http = require('http');
 const bcrypt = require('bcrypt');
@@ -24,7 +24,7 @@ const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
 const io = new Server(server, { 
   cors: { 
     origin: clientUrl,
-    methods: ["GET", "POST"],
+    methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true
   } 
 });
@@ -40,17 +40,14 @@ app.use((req, res, next) => {
   next();
 });
 
-// --- FIREBASE SETUP ---
-// NOTE: On Render, we will upload this file as a "Secret File" to /etc/secrets/service-account.json
-admin.initializeApp({
-  credential: admin.credential.cert(process.env.FIREBASE_KEY_PATH),
-});
+// --- FIREBASE SETUP (DISABLED FOR NOW) ---
+// admin.initializeApp({
+//   credential: admin.credential.cert(process.env.FIREBASE_KEY_PATH),
+// });
 
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log('✅ MongoDB Connected'))
   .catch((err) => console.error('❌ MongoDB Error:', err));
-
-// ... (Rest of your seeding logic and routes remain the same) ...
 
 const seedUser = async () => {
   try {
@@ -79,7 +76,7 @@ seedData();
 app.get('/', (req, res) => res.send('✅ Backend is Running!'));
 app.use('/api/users', userRoutes);
 app.use('/api/medications', medicationRoutes);
-app.use('/api/notifications', notificationRoutes);
+app.use('/api/notifications', notificationRoutes); // Routes will exist, but firebase logic inside might fail if triggered
 
 app.get('/api/medications/user/:userId', async (req, res) => {
   try {
