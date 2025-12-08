@@ -306,3 +306,40 @@ body {
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
+
+.flex-align {
+  display: flex;
+  align-items: center;
+  gap: 10px; /* Space between icon and text */
+}
+
+.action-btn {
+  display: inline-flex; /* Keeps it button-shaped but allows flex inside */
+  align-items: center;  /* Vertically centers icon and text */
+  justify-content: center; /* Horizontally centers content */
+  gap: 8px; /* Proper spacing between + and Text */
+  vertical-align: middle;
+  line-height: 1; /* Prevents text from sitting too high/low */
+  padding: 10px 16px; /* Ensure pill shape looks good */
+  font-family: Inter, sans-serif;
+  
+}
+
+.card-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center; /* This forces vertical centering */
+  margin-bottom: 1.5rem;
+}
+
+.card-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  letter-spacing: 0.5px;
+  margin: 0;
+}

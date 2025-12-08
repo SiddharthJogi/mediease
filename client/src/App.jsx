@@ -10,10 +10,12 @@ const Icons = {
   Dashboard: () => <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>,
   User: () => <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>,
   Logout: () => <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>,
-  Plus: () => <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>,
+  Plus: () => <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>,
   Check: () => <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>,
   Bell: () => <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>,
-  Heart: () => <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" /></svg>
+  Heart: () => <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" /></svg>,
+  Edit: () => <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>,
+  Trash: () => <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
 };
 
 // --- MODAL ---
@@ -27,7 +29,7 @@ const Modal = ({ isOpen, title, children, onClose }) => {
         initial={{ scale: 0.95, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
       >
-        <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '1.5rem', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '1rem'}}>
+        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '1rem'}}>
           <h2 style={{margin: 0, fontSize: '1.25rem', fontWeight: '700'}}>{title}</h2>
           <button onClick={onClose} style={{background: 'none', border: 'none', color: '#fff', fontSize: '1.5rem', cursor: 'pointer'}}>&times;</button>
         </div>
@@ -39,17 +41,19 @@ const Modal = ({ isOpen, title, children, onClose }) => {
 
 function App() {
   const { t } = useTranslation();
-  const BASE_URL = 'http://localhost:5000'; // Ensure this matches your backend
+  const BASE_URL = 'http://localhost:5000'; 
 
   // State
   const [page, setPage] = useState('auth');
   const [loading, setLoading] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-
+  
+  // MODAL STATE MANAGMENT
+  const [modalType, setModalType] = useState(null); // 'addMed', 'editMed', 'caregiver'
+  
   // User Data
-  const [user, setUser] = useState(null); // Full user object
-  const [meds, setMeds] = useState([]);   // Daily schedule instances
+  const [user, setUser] = useState(null);
+  const [meds, setMeds] = useState([]);
 
   // Auth Inputs
   const [email, setEmail] = useState('');
@@ -57,10 +61,13 @@ function App() {
   const [caregiverEmail, setCaregiverEmail] = useState('');
   const [isRegistering, setIsRegistering] = useState(false);
 
-  // Add Med Inputs
+  // Form Inputs (Reused for Add/Edit Meds and Caregiver)
   const [medName, setMedName] = useState('');
   const [medTime, setMedTime] = useState('');
   const [recurrence, setRecurrence] = useState('daily');
+  const [newCaregiverEmail, setNewCaregiverEmail] = useState(''); // Specifically for the modal
+  
+  const [selectedMedId, setSelectedMedId] = useState(null);
 
   // --- INIT ---
   useEffect(() => {
@@ -80,58 +87,48 @@ function App() {
         axios.get(`${BASE_URL}/api/users/profile/${id}`)
       ]);
       setMeds(mRes.data);
-      // Update user state with fresh profile data (includes profile medications list)
-      const freshUser = { ...uRes.data, userId: id }; // Use uRes.data for fresh user object
+      const freshUser = { ...uRes.data, userId: id }; 
       setUser(freshUser);
       localStorage.setItem('mediease_user', JSON.stringify(freshUser));
     } catch (e) { console.error("Data load failed", e); }
   };
 
-  // --- NEW HANDLERS FOR BUTTON FIXES ---
+  // --- MODAL HANDLERS ---
   
-  // 1. Fixes Add New button not clearing state
   const openAddModal = () => {
-    setMedName('');      // Reset form
-    setMedTime('');      // Reset form
+    setModalType('addMed');
+    setMedName('');
+    setMedTime('');
     setRecurrence('daily');
-    setIsModalOpen(true);
-  };
-  
-  // 2. Adds functionality to Link Caregiver button
-  const handleLinkCaregiver = async () => {
-    const newEmail = prompt("Please enter the Caregiver's email address:");
-    if (!newEmail || !user) return; // User cancelled or not logged in
-
-    try {
-      const res = await axios.put(`${BASE_URL}/api/users/profile/${user.userId}`, {
-        caregiverEmail: newEmail
-      });
-      
-      if (res.status === 200) {
-        // Update local state and localStorage immediately
-        const updatedUser = { ...user, caregiverEmail: newEmail };
-        setUser(updatedUser);
-        localStorage.setItem('mediease_user', JSON.stringify(updatedUser));
-        alert("Caregiver linked successfully!");
-      }
-    } catch (e) {
-      console.error("Link caregiver error:", e);
-      alert("Failed to link caregiver. Ensure backend is running and the user update route is working.");
-    }
   };
 
+  const openEditModal = (med) => {
+    setModalType('editMed');
+    setSelectedMedId(med._id);
+    setMedName(med.name);
+    setMedTime(med.time);
+    setRecurrence(med.recurrence || 'daily');
+  };
 
-  // --- EXISTING ACTIONS ---
+  const openCaregiverModal = () => {
+    setModalType('caregiver');
+    setNewCaregiverEmail(user.caregiverEmail || '');
+  };
+
+  const closeModal = () => {
+    setModalType(null);
+  };
+
+  // --- API ACTIONS ---
+
   const handleAuth = async () => {
     if(!email || !password) return alert("Please fill fields");
     setLoading(true);
     try {
       const endpoint = isRegistering ? '/api/users/register' : '/api/users/login';
       const payload = isRegistering ? { email, password, caregiverEmail } : { email, password };
-      
       const res = await axios.post(`${BASE_URL}${endpoint}`, payload);
       const u = res.data;
-      
       localStorage.setItem('mediease_user', JSON.stringify(u));
       setUser(u);
       setPage('dashboard');
@@ -140,47 +137,63 @@ function App() {
     setLoading(false);
   };
 
-  const handleAddMed = async () => {
-    if(!medName || !medTime || !user) {
-      alert("Please ensure all fields are filled and you are logged in.");
+  const handleMedSubmit = async () => {
+    if (!medName || !medTime || !user) {
+      alert("Please enter both a Medicine Name and a Time.");
       return;
     }
     try {
+      setLoading(true);
       const date = new Date().toISOString().split('T')[0];
-      await axios.post(`${BASE_URL}/api/medications/add`, {
-        userId: user.userId, 
-        name: medName, 
-        time: medTime, 
-        date, 
-        recurrence 
-      });
-      setIsModalOpen(false);
-      setMedName(''); setMedTime(''); setRecurrence('daily');
+      const payload = { userId: user.userId, name: medName, time: medTime, date, recurrence };
+
+      if (modalType === 'editMed' && selectedMedId) {
+        await axios.put(`${BASE_URL}/api/medications/update/${selectedMedId}`, payload);
+      } else {
+        await axios.post(`${BASE_URL}/api/medications/add`, payload);
+        setShowConfetti(true);
+        setTimeout(() => setShowConfetti(false), 3000);
+      }
+      closeModal();
       refreshData(user.userId);
-      setShowConfetti(true);
-      setTimeout(() => setShowConfetti(false), 3000);
-    } catch (e) { 
-      console.error("Add med error:", e);
-      alert("Failed to add medication. Check console for details."); 
-    }
+    } catch (e) { alert("Operation failed."); } 
+    finally { setLoading(false); }
+  };
+
+  const handleCaregiverSubmit = async () => {
+    if (!newCaregiverEmail || !user) return;
+    try {
+      const res = await axios.put(`${BASE_URL}/api/users/profile/${user.userId}`, {
+        caregiverEmail: newCaregiverEmail
+      });
+      if (res.status === 200) {
+        const updatedUser = { ...user, caregiverEmail: newCaregiverEmail };
+        setUser(updatedUser);
+        localStorage.setItem('mediease_user', JSON.stringify(updatedUser));
+        closeModal();
+        alert("Caregiver linked successfully!");
+      }
+    } catch (e) { alert("Failed to link caregiver."); }
+  };
+
+  const handleDeleteMed = async (id) => {
+    if(!window.confirm("Delete this medication?")) return;
+    try {
+      await axios.delete(`${BASE_URL}/api/medications/delete/${id}`);
+      refreshData(user.userId);
+    } catch (e) { alert("Failed to delete"); }
   };
 
   const markTaken = async (id) => {
-    // Optimistic UI
     setMeds(meds.map(m => m._id === id ? { ...m, status: 'taken' } : m));
     try {
       const res = await axios.post(`${BASE_URL}/api/medications/${id}/status`);
       if(res.data.user) {
-        // Update points/streak dynamically
         setUser(prev => ({ ...prev, streak: res.data.user.streak, points: res.data.user.points }));
       }
-      // Re-fetch data to ensure status is correctly calculated from history (optional, but safer)
-      // await refreshData(user.userId); 
     } catch (e) { 
       console.error(e); 
-      // Revert optimistic UI on error
       setMeds(meds.map(m => m._id === id ? { ...m, status: 'pending' } : m));
-      alert("Failed to mark taken.");
     }
   };
 
@@ -189,14 +202,10 @@ function App() {
     try {
       await axios.post(`${BASE_URL}/api/notifications/notify-caregiver`, {
         userId: user.userId,
-        type: 'email',
-        message: 'The user has manually triggered a check-in reminder.'
+        type: 'email'
       });
-      alert(`Notification sent to ${user.caregiverEmail}`);
-    } catch(e) { 
-      console.error("Notify caregiver error:", e);
-      alert("Failed to send notification. Check console."); 
-    }
+      alert(`Alert sent to ${user.caregiverEmail}`);
+    } catch(e) { alert("Failed to send notification"); }
   };
 
   const handleLogout = () => {
@@ -206,7 +215,7 @@ function App() {
     setEmail(''); setPassword('');
   };
 
-  // --- VIEW: AUTH ---
+  // --- VIEWS ---
   if (page === 'auth') {
     return (
       <div className="auth-container">
@@ -215,32 +224,19 @@ function App() {
           <p className="sub-text" style={{marginBottom: '2rem'}}>
             {isRegistering ? "Create your health profile" : "Welcome back"}
           </p>
-          
           <div style={{display:'flex', flexDirection:'column', gap:'1rem'}}>
             <input className="input-modern" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Email Address" />
             <input className="input-modern" type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Password" />
-            
             {isRegistering && (
               <motion.div initial={{opacity:0, height:0}} animate={{opacity:1, height:'auto'}}>
-                <input 
-                  className="input-modern" 
-                  type="email" 
-                  value={caregiverEmail} 
-                  onChange={e => setCaregiverEmail(e.target.value)} 
-                  placeholder="Caregiver Email (Optional)" 
-                />
+                <input className="input-modern" type="email" value={caregiverEmail} onChange={e => setCaregiverEmail(e.target.value)} placeholder="Caregiver Email (Optional)" />
               </motion.div>
             )}
-
             <button className="action-btn" style={{width:'100%', padding:'14px', marginTop:'0.5rem'}} onClick={handleAuth} disabled={loading}>
               {loading ? 'Processing...' : (isRegistering ? 'Create Account' : 'Sign In')}
             </button>
-            
             <div style={{textAlign:'center', marginTop:'1rem'}}>
-              <button 
-                onClick={() => setIsRegistering(!isRegistering)} 
-                style={{background:'none', border:'none', color:'var(--text-muted)', cursor:'pointer', fontSize:'0.9rem'}}
-              >
+              <button onClick={() => setIsRegistering(!isRegistering)} style={{background:'none', border:'none', color:'var(--text-muted)', cursor:'pointer', fontSize:'0.9rem'}}>
                 {isRegistering ? "Already have an account? Sign In" : "First time? Create Account"}
               </button>
             </div>
@@ -250,7 +246,6 @@ function App() {
     );
   }
 
-  // --- VIEW: MAIN APP ---
   const nextMed = meds.filter(m => m.status === 'pending').sort((a,b) => a.time.localeCompare(b.time))[0];
 
   return (
@@ -276,7 +271,7 @@ function App() {
         </button>
       </aside>
 
-      {/* Content */}
+      {/* Main Content */}
       <main className="main-wrapper">
         <div className="header-glass">
           <div className="date-display">
@@ -295,7 +290,6 @@ function App() {
 
         {page === 'dashboard' && (
           <motion.div className="bento-grid" initial={{opacity:0}} animate={{opacity:1}}>
-            {/* Hero Card */}
             <div className="glass-card hero-card">
               <span className="label">Next Scheduled Dose</span>
               <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-end'}}>
@@ -313,7 +307,6 @@ function App() {
               </div>
             </div>
 
-            {/* Quick Add (FIXED CLICK HANDLER) */}
             <div className="glass-card stat-box" onClick={openAddModal} style={{cursor:'pointer', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center'}}>
               <div style={{background:'var(--primary)', width:'50px', height:'50px', borderRadius:'25px', display:'flex', alignItems:'center', justifyContent:'center', marginBottom:'1rem'}}>
                 <Icons.Plus />
@@ -321,7 +314,6 @@ function App() {
               <span style={{fontWeight:'600'}}>Add Med</span>
             </div>
 
-            {/* Timeline */}
             <div className="timeline-section">
               <h3 style={{marginBottom:'1rem', fontSize:'1.2rem'}}>Today's Schedule</h3>
               <div className="med-list">
@@ -333,11 +325,15 @@ function App() {
                       <h3>{med.name}</h3>
                       <p>{med.dosage || 'Standard Dose'}</p>
                     </div>
-                    {med.status === 'taken' ? (
-                       <div style={{color:'#10b981', display:'flex', alignItems:'center', gap:'8px', fontWeight:'600'}}><Icons.Check /> Taken</div>
-                    ) : (
-                      <button className="action-btn" onClick={() => markTaken(med._id)}>Mark</button>
-                    )}
+                    <div style={{display:'flex', gap:'10px', alignItems:'center'}}>
+                      <button onClick={() => openEditModal(med)} style={{background:'none', border:'none', color:'var(--text-muted)', cursor:'pointer'}}><Icons.Edit /></button>
+                      <button onClick={() => handleDeleteMed(med._id)} style={{background:'none', border:'none', color:'#ef4444', cursor:'pointer'}}><Icons.Trash /></button>
+                      {med.status === 'taken' ? (
+                         <div style={{color:'#10b981', display:'flex', alignItems:'center', gap:'8px', fontWeight:'600'}}><Icons.Check /> Taken</div>
+                      ) : (
+                        <button className="action-btn" onClick={() => markTaken(med._id)}>Mark</button>
+                      )}
+                    </div>
                   </motion.div>
                 ))}
               </div>
@@ -347,8 +343,6 @@ function App() {
 
         {page === 'profile' && user && (
           <motion.div className="bento-grid" initial={{opacity:0}} animate={{opacity:1}}>
-            
-            {/* Profile Info */}
             <div className="glass-card" style={{gridColumn: 'span 2'}}>
                <div style={{display:'flex', alignItems:'center', gap:'1rem', marginBottom:'1.5rem'}}>
                  <div style={{width:'60px', height:'60px', borderRadius:'30px', background:'var(--bg-card-hover)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'1.5rem'}}>👤</div>
@@ -369,10 +363,10 @@ function App() {
                </div>
             </div>
 
-            {/* Caretaker Card */}
             <div className="glass-card" style={{gridColumn: 'span 2'}}>
-               <div style={{display:'flex', justifyContent:'space-between', marginBottom:'1rem',verticalAlign:'top'}}>
-                  <span className="label"><Icons.Heart /> Care Network</span>
+               {/* Fixed Header Alignment */}
+               <div className="card-header-row">
+                  <span className="card-title"><Icons.Heart /> Care Network</span>
                   {user.caregiverEmail && <span style={{color:'#10b981', fontSize:'0.8rem'}}>● Active</span>}
                </div>
                
@@ -387,20 +381,19 @@ function App() {
                ) : (
                  <div style={{textAlign:'center', padding:'1rem'}}>
                    <p className="sub-text">No caregiver linked.</p>
-                   {/* LINK CAREGIVER BUTTON FIXED */}
-                   <button className="action-btn" style={{marginTop:'0.5rem',fontFamily:'Inter, sans-serif'}} onClick={handleLinkCaregiver}>
+                   {/* FIXED Link Caregiver Button */}
+                   <button className="action-btn" style={{marginTop:'0.5rem'}} onClick={openCaregiverModal}>
                      Link Caregiver
                    </button>
                  </div>
                )}
             </div>
 
-            {/* Master Prescription List */}
             <div className="glass-card" style={{gridColumn: 'span 4'}}>
-               <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'1.5rem'}}>
+               {/* Fixed Add New Button Alignment */}
+               <div className="card-header-row">
                  <h2 style={{fontSize:'1.25rem', margin:0}}>My Prescriptions</h2>
-                 {/* ADD NEW BUTTON FIXED */}
-                 <button className="action-btn" onClick={openAddModal} style={{fontFamily:'Inter, sans-serif',flexDirection:'row',alignItems:'center',gap:'8px'}}><Icons.Plus /> Add New</button>
+                 <button className="action-btn" onClick={openAddModal}><Icons.Plus /> Add New</button>
                </div>
                
                <div className="med-list">
@@ -420,36 +413,54 @@ function App() {
                  )}
                </div>
             </div>
-
           </motion.div>
         )}
       </main>
 
-      {/* Modal: Add Medicine */}
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Add Medication">
-        <div style={{display:'flex', flexDirection:'column', gap:'1.25rem'}}>
-          <div>
-            <label className="label" style={{marginBottom:'8px', display:'block'}}>Medicine Name</label>
-            <input className="input-modern" placeholder="e.g. Amoxicillin" value={medName} onChange={e => setMedName(e.target.value)} autoFocus />
-          </div>
-          <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'1rem'}}>
+      {/* --- REUSABLE MODAL CONTENT --- */}
+      <Modal isOpen={!!modalType} onClose={closeModal} title={modalType === 'caregiver' ? 'Caregiver Settings' : (modalType === 'editMed' ? 'Edit Medication' : 'Add Medication')}>
+        
+        {/* VIEW 1: Add/Edit Medication */}
+        {(modalType === 'addMed' || modalType === 'editMed') && (
+          <div style={{display:'flex', flexDirection:'column', gap:'1.25rem'}}>
             <div>
-              <label className="label" style={{marginBottom:'8px', display:'block'}}>Time</label>
-              <input className="input-modern" type="time" value={medTime} onChange={e => setMedTime(e.target.value)} />
+              <label className="label" style={{marginBottom:'8px', display:'block'}}>Medicine Name</label>
+              <input className="input-modern" placeholder="e.g. Amoxicillin" value={medName} onChange={e => setMedName(e.target.value)} autoFocus />
             </div>
-            <div>
-              <label className="label" style={{marginBottom:'8px', display:'block'}}>Recurrence</label>
-              <select className="input-modern" value={recurrence} onChange={e => setRecurrence(e.target.value)}>
-                <option value="daily">Daily</option>
-                <option value="weekly">Weekly</option>
-                <option value="none">One-time</option>
-              </select>
+            <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'1rem'}}>
+              <div>
+                <label className="label" style={{marginBottom:'8px', display:'block'}}>Time</label>
+                <input className="input-modern" type="time" value={medTime} onChange={e => setMedTime(e.target.value)} />
+              </div>
+              <div>
+                <label className="label" style={{marginBottom:'8px', display:'block'}}>Recurrence</label>
+                <select className="input-modern" value={recurrence} onChange={e => setRecurrence(e.target.value)}>
+                  <option value="daily">Daily</option>
+                  <option value="weekly">Weekly</option>
+                  <option value="none">One-time</option>
+                </select>
+              </div>
             </div>
+            <button className="action-btn" style={{width:'100%', padding:'14px', marginTop:'0.5rem'}} onClick={handleMedSubmit}>
+              {loading ? 'Saving...' : 'Save Schedule'}
+            </button>
           </div>
-          <button className="action-btn" style={{width:'100%', padding:'14px', marginTop:'0.5rem'}} onClick={handleAddMed}>
-            Save to Schedule
-          </button>
-        </div>
+        )}
+
+        {/* VIEW 2: Caregiver Link */}
+        {modalType === 'caregiver' && (
+          <div style={{display:'flex', flexDirection:'column', gap:'1.25rem'}}>
+            <p className="sub-text">Enter the email address of a family member or caregiver. They will receive alerts if you miss a dose.</p>
+            <div>
+              <label className="label" style={{marginBottom:'8px', display:'block'}}>Caregiver Email</label>
+              <input className="input-modern" type="email" placeholder="name@example.com" value={newCaregiverEmail} onChange={e => setNewCaregiverEmail(e.target.value)} autoFocus />
+            </div>
+            <button className="action-btn" style={{width:'100%', padding:'14px', marginTop:'0.5rem'}} onClick={handleCaregiverSubmit}>
+              Link Account
+            </button>
+          </div>
+        )}
+
       </Modal>
     </div>
   );
