@@ -371,7 +371,7 @@ function App() {
 
             {/* Caretaker Card */}
             <div className="glass-card" style={{gridColumn: 'span 2'}}>
-               <div style={{display:'flex', justifyContent:'space-between', marginBottom:'1rem'}}>
+               <div style={{display:'flex', justifyContent:'space-between', marginBottom:'1rem',verticalAlign:'top'}}>
                   <span className="label"><Icons.Heart /> Care Network</span>
                   {user.caregiverEmail && <span style={{color:'#10b981', fontSize:'0.8rem'}}>● Active</span>}
                </div>
@@ -388,7 +388,7 @@ function App() {
                  <div style={{textAlign:'center', padding:'1rem'}}>
                    <p className="sub-text">No caregiver linked.</p>
                    {/* LINK CAREGIVER BUTTON FIXED */}
-                   <button className="action-btn" style={{marginTop:'0.5rem'}} onClick={handleLinkCaregiver}>
+                   <button className="action-btn" style={{marginTop:'0.5rem',fontFamily:'Inter, sans-serif'}} onClick={handleLinkCaregiver}>
                      Link Caregiver
                    </button>
                  </div>
@@ -400,7 +400,7 @@ function App() {
                <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'1.5rem'}}>
                  <h2 style={{fontSize:'1.25rem', margin:0}}>My Prescriptions</h2>
                  {/* ADD NEW BUTTON FIXED */}
-                 <button className="action-btn" onClick={openAddModal}><Icons.Plus /> Add New</button>
+                 <button className="action-btn" onClick={openAddModal} style={{fontFamily:'Inter, sans-serif',flexDirection:'row',alignItems:'center',gap:'8px'}}><Icons.Plus /> Add New</button>
                </div>
                
                <div className="med-list">
