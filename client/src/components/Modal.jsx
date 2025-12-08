@@ -1,7 +1,7 @@
 // src/Modal.jsx
 import React from 'react';
 import { motion } from 'framer-motion';
-import './App.css'; 
+import '../App.css'; 
 
 const Modal = ({ isOpen, title, children, onClose }) => {
   if (!isOpen) return null;
