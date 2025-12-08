@@ -13,9 +13,7 @@ const Icons = {
   Plus: () => <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>,
   Check: () => <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>,
   Bell: () => <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>,
-  Heart: () => <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" /></svg>,
-  Edit: () => <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>,
-  Trash: () => <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+  Heart: () => <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" /></svg>
 };
 
 // --- MODAL ---
@@ -41,7 +39,7 @@ const Modal = ({ isOpen, title, children, onClose }) => {
 
 function App() {
   const { t } = useTranslation();
-  const BASE_URL = 'http://localhost:5000'; 
+  const BASE_URL = 'http://localhost:5000'; // Ensure this matches your backend
 
   // State
   const [page, setPage] = useState('auth');
@@ -50,8 +48,8 @@ function App() {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   // User Data
-  const [user, setUser] = useState(null);
-  const [meds, setMeds] = useState([]);
+  const [user, setUser] = useState(null); // Full user object
+  const [meds, setMeds] = useState([]);   // Daily schedule instances
 
   // Auth Inputs
   const [email, setEmail] = useState('');
@@ -59,14 +57,10 @@ function App() {
   const [caregiverEmail, setCaregiverEmail] = useState('');
   const [isRegistering, setIsRegistering] = useState(false);
 
-  // Med Form Inputs
+  // Add Med Inputs
   const [medName, setMedName] = useState('');
   const [medTime, setMedTime] = useState('');
   const [recurrence, setRecurrence] = useState('daily');
-  
-  // Edit Mode State
-  const [editMode, setEditMode] = useState(false);
-  const [selectedMedId, setSelectedMedId] = useState(null);
 
   // --- INIT ---
   useEffect(() => {
@@ -86,62 +80,48 @@ function App() {
         axios.get(`${BASE_URL}/api/users/profile/${id}`)
       ]);
       setMeds(mRes.data);
-      const freshUser = { ...user, ...uRes.data, userId: id };
+      // Update user state with fresh profile data (includes profile medications list)
+      const freshUser = { ...uRes.data, userId: id }; // Use uRes.data for fresh user object
       setUser(freshUser);
       localStorage.setItem('mediease_user', JSON.stringify(freshUser));
     } catch (e) { console.error("Data load failed", e); }
   };
 
-  // --- HELPER FUNCTIONS ---
+  // --- NEW HANDLERS FOR BUTTON FIXES ---
   
- // --- NEW HELPER FUNCTIONS ---
-
-  // 1. Logic for Link Caregiver Button
+  // 1. Fixes Add New button not clearing state
+  const openAddModal = () => {
+    setMedName('');      // Reset form
+    setMedTime('');      // Reset form
+    setRecurrence('daily');
+    setIsModalOpen(true);
+  };
+  
+  // 2. Adds functionality to Link Caregiver button
   const handleLinkCaregiver = async () => {
     const newEmail = prompt("Please enter the Caregiver's email address:");
-    if (!newEmail) return; // User cancelled
+    if (!newEmail || !user) return; // User cancelled or not logged in
 
     try {
-      // Calls the new route we just added
       const res = await axios.put(`${BASE_URL}/api/users/profile/${user.userId}`, {
         caregiverEmail: newEmail
       });
       
-      if (res.data.success) {
-        // Update local state immediately
+      if (res.status === 200) {
+        // Update local state and localStorage immediately
         const updatedUser = { ...user, caregiverEmail: newEmail };
         setUser(updatedUser);
         localStorage.setItem('mediease_user', JSON.stringify(updatedUser));
         alert("Caregiver linked successfully!");
       }
     } catch (e) {
-      console.error(e);
-      alert("Failed to link caregiver. Check console.");
+      console.error("Link caregiver error:", e);
+      alert("Failed to link caregiver. Ensure backend is running and the user update route is working.");
     }
   };
 
-  // 2. Logic for Add New Button (Cleans state first)
-  const openAddModal = () => {
-    setMedName('');      // Reset form
-    setMedTime('');      // Reset form
-    setRecurrence('daily');
-    // Ensure you are not in "Edit Mode" if you implemented that previously
-    // setEditMode(false); 
-    // setSelectedMedId(null);
-    setIsModalOpen(true);
-  };
 
-  // Open Modal for EDITING
-  const openEditModal = (med) => {
-    setEditMode(true);
-    setSelectedMedId(med._id);
-    setMedName(med.name);
-    setMedTime(med.time);
-    setRecurrence(med.recurrence || 'daily');
-    setIsModalOpen(true);
-  };
-
-  // --- ACTIONS ---
+  // --- EXISTING ACTIONS ---
   const handleAuth = async () => {
     if(!email || !password) return alert("Please fill fields");
     setLoading(true);
@@ -160,61 +140,48 @@ function App() {
     setLoading(false);
   };
 
-  // Consolidated Handle Submit (Add or Edit)
-  const handleSubmitMed = async () => {
-    if (!medName || !medTime) {
-      alert("Please enter both a Medicine Name and a Time.");
+  const handleAddMed = async () => {
+    if(!medName || !medTime || !user) {
+      alert("Please ensure all fields are filled and you are logged in.");
       return;
     }
-    if (!user || !user.userId) {
-      alert("User session invalid.");
-      return;
-    }
-
     try {
-      setLoading(true);
       const date = new Date().toISOString().split('T')[0];
-      const payload = { userId: user.userId, name: medName, time: medTime, date, recurrence };
-
-      if (editMode && selectedMedId) {
-        // UPDATE Existing
-        await axios.put(`${BASE_URL}/api/medications/update/${selectedMedId}`, payload);
-      } else {
-        // ADD New
-        await axios.post(`${BASE_URL}/api/medications/add`, payload);
-        setShowConfetti(true);
-        setTimeout(() => setShowConfetti(false), 3000);
-      }
-
-      // Cleanup
+      await axios.post(`${BASE_URL}/api/medications/add`, {
+        userId: user.userId, 
+        name: medName, 
+        time: medTime, 
+        date, 
+        recurrence 
+      });
       setIsModalOpen(false);
-      setMedName(''); setMedTime('');
+      setMedName(''); setMedTime(''); setRecurrence('daily');
       refreshData(user.userId);
-
+      setShowConfetti(true);
+      setTimeout(() => setShowConfetti(false), 3000);
     } catch (e) { 
-      console.error("Submit Error:", e);
-      alert("Operation failed. Check console for details.");
-    } finally {
-      setLoading(false);
+      console.error("Add med error:", e);
+      alert("Failed to add medication. Check console for details."); 
     }
-  };
-
-  const handleDeleteMed = async (id) => {
-    if(!window.confirm("Are you sure you want to delete this medication?")) return;
-    try {
-      await axios.delete(`${BASE_URL}/api/medications/delete/${id}`);
-      refreshData(user.userId);
-    } catch (e) { alert("Failed to delete"); }
   };
 
   const markTaken = async (id) => {
+    // Optimistic UI
     setMeds(meds.map(m => m._id === id ? { ...m, status: 'taken' } : m));
     try {
       const res = await axios.post(`${BASE_URL}/api/medications/${id}/status`);
       if(res.data.user) {
+        // Update points/streak dynamically
         setUser(prev => ({ ...prev, streak: res.data.user.streak, points: res.data.user.points }));
       }
-    } catch (e) { console.error(e); }
+      // Re-fetch data to ensure status is correctly calculated from history (optional, but safer)
+      // await refreshData(user.userId); 
+    } catch (e) { 
+      console.error(e); 
+      // Revert optimistic UI on error
+      setMeds(meds.map(m => m._id === id ? { ...m, status: 'pending' } : m));
+      alert("Failed to mark taken.");
+    }
   };
 
   const notifyCaregiver = async () => {
@@ -222,10 +189,14 @@ function App() {
     try {
       await axios.post(`${BASE_URL}/api/notifications/notify-caregiver`, {
         userId: user.userId,
-        type: 'email'
+        type: 'email',
+        message: 'The user has manually triggered a check-in reminder.'
       });
-      alert(`Alert sent to ${user.caregiverEmail}`);
-    } catch(e) { alert("Failed to send notification"); }
+      alert(`Notification sent to ${user.caregiverEmail}`);
+    } catch(e) { 
+      console.error("Notify caregiver error:", e);
+      alert("Failed to send notification. Check console."); 
+    }
   };
 
   const handleLogout = () => {
@@ -235,7 +206,7 @@ function App() {
     setEmail(''); setPassword('');
   };
 
-  // --- VIEWS ---
+  // --- VIEW: AUTH ---
   if (page === 'auth') {
     return (
       <div className="auth-container">
@@ -279,6 +250,7 @@ function App() {
     );
   }
 
+  // --- VIEW: MAIN APP ---
   const nextMed = meds.filter(m => m.status === 'pending').sort((a,b) => a.time.localeCompare(b.time))[0];
 
   return (
@@ -304,7 +276,7 @@ function App() {
         </button>
       </aside>
 
-      {/* Main Content */}
+      {/* Content */}
       <main className="main-wrapper">
         <div className="header-glass">
           <div className="date-display">
@@ -341,12 +313,8 @@ function App() {
               </div>
             </div>
 
-            {/* Quick Add Button (Fixed Click) */}
-            <div 
-              className="glass-card stat-box" 
-              onClick={openAddModal} 
-              style={{cursor:'pointer', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center'}}
-            >
+            {/* Quick Add (FIXED CLICK HANDLER) */}
+            <div className="glass-card stat-box" onClick={openAddModal} style={{cursor:'pointer', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center'}}>
               <div style={{background:'var(--primary)', width:'50px', height:'50px', borderRadius:'25px', display:'flex', alignItems:'center', justifyContent:'center', marginBottom:'1rem'}}>
                 <Icons.Plus />
               </div>
@@ -365,20 +333,11 @@ function App() {
                       <h3>{med.name}</h3>
                       <p>{med.dosage || 'Standard Dose'}</p>
                     </div>
-                    {/* Action Buttons */}
-                    <div style={{display:'flex', gap:'10px', alignItems:'center'}}>
-                      <button onClick={() => openEditModal(med)} style={{background:'none', border:'none', color:'var(--text-muted)', cursor:'pointer'}}>
-                        <Icons.Edit />
-                      </button>
-                      <button onClick={() => handleDeleteMed(med._id)} style={{background:'none', border:'none', color:'#ef4444', cursor:'pointer'}}>
-                        <Icons.Trash />
-                      </button>
-                      {med.status === 'taken' ? (
-                         <div style={{color:'#10b981', display:'flex', alignItems:'center', gap:'8px', fontWeight:'600'}}><Icons.Check /> Taken</div>
-                      ) : (
-                        <button className="action-btn" onClick={() => markTaken(med._id)}>Mark</button>
-                      )}
-                    </div>
+                    {med.status === 'taken' ? (
+                       <div style={{color:'#10b981', display:'flex', alignItems:'center', gap:'8px', fontWeight:'600'}}><Icons.Check /> Taken</div>
+                    ) : (
+                      <button className="action-btn" onClick={() => markTaken(med._id)}>Mark</button>
+                    )}
                   </motion.div>
                 ))}
               </div>
@@ -428,7 +387,10 @@ function App() {
                ) : (
                  <div style={{textAlign:'center', padding:'1rem'}}>
                    <p className="sub-text">No caregiver linked.</p>
-                   <button className="action-btn" style={{marginTop:'0.5rem'}} onClick={handleLinkCaregiver}>Link Caregiver</button>
+                   {/* LINK CAREGIVER BUTTON FIXED */}
+                   <button className="action-btn" style={{marginTop:'0.5rem'}} onClick={handleLinkCaregiver}>
+                     Link Caregiver
+                   </button>
                  </div>
                )}
             </div>
@@ -437,7 +399,7 @@ function App() {
             <div className="glass-card" style={{gridColumn: 'span 4'}}>
                <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'1.5rem'}}>
                  <h2 style={{fontSize:'1.25rem', margin:0}}>My Prescriptions</h2>
-                 {/* Fixed Click Handler */}
+                 {/* ADD NEW BUTTON FIXED */}
                  <button className="action-btn" onClick={openAddModal}><Icons.Plus /> Add New</button>
                </div>
                
@@ -450,7 +412,7 @@ function App() {
                          <h3 style={{fontSize:'1rem', margin:0}}>{m.name}</h3>
                          <p className="sub-text">{m.recurrence} • {m.time} • {m.dosage || '1 pill'}</p>
                        </div>
-                       <button className="pill" style={{fontSize:'0.8rem', padding:'4px 10px', background: 'transparent', border:'1px solid var(--border-subtle)', cursor:'pointer'}}>Edit</button>
+                       <div className="pill" style={{fontSize:'0.8rem', padding:'4px 10px'}}>Active</div>
                      </div>
                    ))
                  ) : (
@@ -463,8 +425,8 @@ function App() {
         )}
       </main>
 
-      {/* Reusable Modal: Add/Edit Medication */}
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={editMode ? "Edit Medication" : "Add Medication"}>
+      {/* Modal: Add Medicine */}
+      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Add Medication">
         <div style={{display:'flex', flexDirection:'column', gap:'1.25rem'}}>
           <div>
             <label className="label" style={{marginBottom:'8px', display:'block'}}>Medicine Name</label>
@@ -484,8 +446,8 @@ function App() {
               </select>
             </div>
           </div>
-          <button className="action-btn" style={{width:'100%', padding:'14px', marginTop:'0.5rem'}} onClick={handleSubmitMed}>
-            {loading ? 'Saving...' : (editMode ? 'Update Schedule' : 'Save to Schedule')}
+          <button className="action-btn" style={{width:'100%', padding:'14px', marginTop:'0.5rem'}} onClick={handleAddMed}>
+            Save to Schedule
           </button>
         </div>
       </Modal>
