@@ -2,13 +2,14 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Icons } from './Icons';
 
-const Profile = ({ user, openCaregiverModal, notifyCaregiver, openAddModal }) => {
+// Added 'meds' to the props destructuring
+const Profile = ({ user, meds, openCaregiverModal, notifyCaregiver, openAddModal }) => {
   return (
     <motion.div className="bento-grid" initial={{opacity:0}} animate={{opacity:1}}>
       
       {/* Profile Info */}
       <div className="glass-card" style={{gridColumn: 'span 2'}}>
-         <div style={{display:'flex', alignItems:'center', gap:'1rem', marginBottom:'1.5rem'}}>
+         <div className="flex-align" style={{marginBottom:'1.5rem', gap:'1rem'}}>
            <div style={{width:'60px', height:'60px', borderRadius:'30px', background:'var(--bg-card-hover)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'1.5rem'}}>👤</div>
            <div>
              <h2 style={{margin:0}}>{user.email.split('@')[0]}</h2>
@@ -60,9 +61,10 @@ const Profile = ({ user, openCaregiverModal, notifyCaregiver, openAddModal }) =>
          </div>
          
          <div className="med-list">
-           {user.medications && user.medications.length > 0 ? (
-             user.medications.map((m, idx) => (
-               <div key={idx} className="med-item" style={{cursor:'default'}}>
+           {/* SWITCHED FROM user.medications TO meds */}
+           {meds && meds.length > 0 ? (
+             meds.map((m, idx) => (
+               <div key={m._id || idx} className="med-item" style={{cursor:'default'}}>
                  <div style={{width:'40px', height:'40px', background:'var(--bg-app)', borderRadius:'8px', display:'flex', alignItems:'center', justifyContent:'center'}}>💊</div>
                  <div style={{flex:1}}>
                    <h3 style={{fontSize:'1rem', margin:0}}>{m.name}</h3>

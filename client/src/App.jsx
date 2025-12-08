@@ -195,7 +195,8 @@ function App() {
 
         {page === 'profile' && user && (
           <Profile 
-            user={user} 
+            user={user}
+            meds={meds} // <--- PASSING THE REAL LIST HERE
             openCaregiverModal={openCaregiverModal} 
             notifyCaregiver={notifyCaregiver} 
             openAddModal={openAddModal} 
