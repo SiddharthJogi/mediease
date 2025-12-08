@@ -3,6 +3,7 @@ import axios from 'axios';
 import { useTranslation } from 'react-i18next';
 import Confetti from 'react-confetti';
 import { motion } from 'framer-motion';
+import Modal from './components/Modal.jsx'; // Import the new Modal component
 import './App.css';
 
 // --- ICONS ---
@@ -18,54 +19,32 @@ const Icons = {
   Trash: () => <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
 };
 
-// --- MODAL ---
-const Modal = ({ isOpen, title, children, onClose }) => {
-  if (!isOpen) return null;
-  return (
-    <div className="modal-overlay" onClick={onClose}>
-      <motion.div 
-        className="modal-content" 
-        onClick={e => e.stopPropagation()}
-        initial={{ scale: 0.95, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-      >
-        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '1rem'}}>
-          <h2 style={{margin: 0, fontSize: '1.25rem', fontWeight: '700'}}>{title}</h2>
-          <button onClick={onClose} style={{background: 'none', border: 'none', color: '#fff', fontSize: '1.5rem', cursor: 'pointer'}}>&times;</button>
-        </div>
-        {children}
-      </motion.div>
-    </div>
-  );
-};
-
 function App() {
   const { t } = useTranslation();
   const BASE_URL = 'http://localhost:5000'; 
 
-  // State
+  // --- STATE ---
   const [page, setPage] = useState('auth');
   const [loading, setLoading] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
   
-  // MODAL STATE MANAGMENT
-  const [modalType, setModalType] = useState(null); // 'addMed', 'editMed', 'caregiver'
+  // MODAL STATE
+  const [activeModal, setActiveModal] = useState(null); // null | 'addMed' | 'editMed' | 'caregiver'
   
-  // User Data
+  // DATA
   const [user, setUser] = useState(null);
   const [meds, setMeds] = useState([]);
 
-  // Auth Inputs
+  // FORMS
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [caregiverEmail, setCaregiverEmail] = useState('');
   const [isRegistering, setIsRegistering] = useState(false);
 
-  // Form Inputs (Reused for Add/Edit Meds and Caregiver)
   const [medName, setMedName] = useState('');
   const [medTime, setMedTime] = useState('');
   const [recurrence, setRecurrence] = useState('daily');
-  const [newCaregiverEmail, setNewCaregiverEmail] = useState(''); // Specifically for the modal
+  const [newCaregiverEmail, setNewCaregiverEmail] = useState('');
   
   const [selectedMedId, setSelectedMedId] = useState(null);
 
@@ -81,6 +60,7 @@ function App() {
   }, []);
 
   const refreshData = async (id) => {
+    if (!id) return;
     try {
       const [mRes, uRes] = await Promise.all([
         axios.get(`${BASE_URL}/api/medications/user/${id}`),
@@ -94,33 +74,32 @@ function App() {
   };
 
   // --- MODAL HANDLERS ---
-  
   const openAddModal = () => {
-    setModalType('addMed');
     setMedName('');
     setMedTime('');
     setRecurrence('daily');
+    setSelectedMedId(null);
+    setActiveModal('addMed');
   };
 
   const openEditModal = (med) => {
-    setModalType('editMed');
-    setSelectedMedId(med._id);
     setMedName(med.name);
     setMedTime(med.time);
     setRecurrence(med.recurrence || 'daily');
+    setSelectedMedId(med._id);
+    setActiveModal('editMed');
   };
 
   const openCaregiverModal = () => {
-    setModalType('caregiver');
     setNewCaregiverEmail(user.caregiverEmail || '');
+    setActiveModal('caregiver');
   };
 
   const closeModal = () => {
-    setModalType(null);
+    setActiveModal(null);
   };
 
   // --- API ACTIONS ---
-
   const handleAuth = async () => {
     if(!email || !password) return alert("Please fill fields");
     setLoading(true);
@@ -128,26 +107,22 @@ function App() {
       const endpoint = isRegistering ? '/api/users/register' : '/api/users/login';
       const payload = isRegistering ? { email, password, caregiverEmail } : { email, password };
       const res = await axios.post(`${BASE_URL}${endpoint}`, payload);
-      const u = res.data;
-      localStorage.setItem('mediease_user', JSON.stringify(u));
-      setUser(u);
+      localStorage.setItem('mediease_user', JSON.stringify(res.data));
+      setUser(res.data);
       setPage('dashboard');
-      refreshData(u.userId);
-    } catch (e) { alert("Authentication failed: " + (e.response?.data?.message || e.message)); }
+      refreshData(res.data.userId);
+    } catch (e) { alert("Authentication failed. Check credentials."); }
     setLoading(false);
   };
 
   const handleMedSubmit = async () => {
-    if (!medName || !medTime || !user) {
-      alert("Please enter both a Medicine Name and a Time.");
-      return;
-    }
+    if (!medName || !medTime) return alert("Fill all fields.");
+    setLoading(true);
     try {
-      setLoading(true);
       const date = new Date().toISOString().split('T')[0];
       const payload = { userId: user.userId, name: medName, time: medTime, date, recurrence };
-
-      if (modalType === 'editMed' && selectedMedId) {
+      
+      if (activeModal === 'editMed') {
         await axios.put(`${BASE_URL}/api/medications/update/${selectedMedId}`, payload);
       } else {
         await axios.post(`${BASE_URL}/api/medications/add`, payload);
@@ -156,24 +131,21 @@ function App() {
       }
       closeModal();
       refreshData(user.userId);
-    } catch (e) { alert("Operation failed."); } 
-    finally { setLoading(false); }
+    } catch (e) { alert("Action failed."); }
+    setLoading(false);
   };
 
   const handleCaregiverSubmit = async () => {
-    if (!newCaregiverEmail || !user) return;
+    if (!newCaregiverEmail) return;
     try {
-      const res = await axios.put(`${BASE_URL}/api/users/profile/${user.userId}`, {
-        caregiverEmail: newCaregiverEmail
-      });
+      const res = await axios.put(`${BASE_URL}/api/users/profile/${user.userId}`, { caregiverEmail: newCaregiverEmail });
       if (res.status === 200) {
-        const updatedUser = { ...user, caregiverEmail: newCaregiverEmail };
-        setUser(updatedUser);
-        localStorage.setItem('mediease_user', JSON.stringify(updatedUser));
+        setUser({ ...user, caregiverEmail: newCaregiverEmail });
+        localStorage.setItem('mediease_user', JSON.stringify({ ...user, caregiverEmail: newCaregiverEmail }));
         closeModal();
-        alert("Caregiver linked successfully!");
+        alert("Caregiver linked!");
       }
-    } catch (e) { alert("Failed to link caregiver."); }
+    } catch (e) { alert("Failed to link."); }
   };
 
   const handleDeleteMed = async (id) => {
@@ -188,58 +160,42 @@ function App() {
     setMeds(meds.map(m => m._id === id ? { ...m, status: 'taken' } : m));
     try {
       const res = await axios.post(`${BASE_URL}/api/medications/${id}/status`);
-      if(res.data.user) {
-        setUser(prev => ({ ...prev, streak: res.data.user.streak, points: res.data.user.points }));
-      }
+      if(res.data.user) setUser(prev => ({ ...prev, ...res.data.user }));
     } catch (e) { 
       console.error(e); 
-      setMeds(meds.map(m => m._id === id ? { ...m, status: 'pending' } : m));
+      refreshData(user.userId); // Revert on fail
     }
   };
 
   const notifyCaregiver = async () => {
-    if(!user.caregiverEmail) return alert("No caregiver email set.");
+    if(!user.caregiverEmail) return alert("No caregiver email linked.");
     try {
-      await axios.post(`${BASE_URL}/api/notifications/notify-caregiver`, {
-        userId: user.userId,
-        type: 'email'
-      });
-      alert(`Alert sent to ${user.caregiverEmail}`);
-    } catch(e) { alert("Failed to send notification"); }
+      await axios.post(`${BASE_URL}/api/notifications/notify-caregiver`, { userId: user.userId, type: 'email' });
+      alert("Alert sent!");
+    } catch(e) { alert("Failed to send."); }
   };
 
   const handleLogout = () => {
     localStorage.removeItem('mediease_user');
     setUser(null);
     setPage('auth');
-    setEmail(''); setPassword('');
   };
 
-  // --- VIEWS ---
+  // --- RENDER ---
   if (page === 'auth') {
     return (
       <div className="auth-container">
         <motion.div className="auth-box" initial={{opacity:0, scale:0.9}} animate={{opacity:1, scale:1}}>
           <h1 className="brand-title">Ez-Med</h1>
-          <p className="sub-text" style={{marginBottom: '2rem'}}>
-            {isRegistering ? "Create your health profile" : "Welcome back"}
-          </p>
+          <p className="sub-text" style={{marginBottom: '2rem'}}>{isRegistering ? "Create Account" : "Welcome Back"}</p>
           <div style={{display:'flex', flexDirection:'column', gap:'1rem'}}>
-            <input className="input-modern" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Email Address" />
-            <input className="input-modern" type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Password" />
-            {isRegistering && (
-              <motion.div initial={{opacity:0, height:0}} animate={{opacity:1, height:'auto'}}>
-                <input className="input-modern" type="email" value={caregiverEmail} onChange={e => setCaregiverEmail(e.target.value)} placeholder="Caregiver Email (Optional)" />
-              </motion.div>
-            )}
-            <button className="action-btn" style={{width:'100%', padding:'14px', marginTop:'0.5rem'}} onClick={handleAuth} disabled={loading}>
-              {loading ? 'Processing...' : (isRegistering ? 'Create Account' : 'Sign In')}
+            <input className="input-modern" type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} />
+            <input className="input-modern" type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} />
+            {isRegistering && <input className="input-modern" type="email" placeholder="Caregiver Email (Optional)" value={caregiverEmail} onChange={e => setCaregiverEmail(e.target.value)} />}
+            <button className="action-btn" style={{width:'100%', marginTop:'0.5rem'}} onClick={handleAuth} disabled={loading}>{loading ? '...' : (isRegistering ? 'Sign Up' : 'Login')}</button>
+            <button onClick={() => setIsRegistering(!isRegistering)} style={{background:'none', border:'none', color:'var(--text-muted)', marginTop:'1rem', cursor:'pointer'}}>
+              {isRegistering ? "Have an account? Login" : "New? Create Account"}
             </button>
-            <div style={{textAlign:'center', marginTop:'1rem'}}>
-              <button onClick={() => setIsRegistering(!isRegistering)} style={{background:'none', border:'none', color:'var(--text-muted)', cursor:'pointer', fontSize:'0.9rem'}}>
-                {isRegistering ? "Already have an account? Sign In" : "First time? Create Account"}
-              </button>
-            </div>
           </div>
         </motion.div>
       </div>
@@ -259,19 +215,13 @@ function App() {
           <div className="brand-name">Ez-Med</div>
         </div>
         <nav className="nav-menu">
-          <button className={`nav-item ${page === 'dashboard' ? 'active' : ''}`} onClick={() => setPage('dashboard')}>
-            <Icons.Dashboard /> Dashboard
-          </button>
-          <button className={`nav-item ${page === 'profile' ? 'active' : ''}`} onClick={() => setPage('profile')}>
-            <Icons.User /> Profile & Meds
-          </button>
+          <button className={`nav-item ${page === 'dashboard' ? 'active' : ''}`} onClick={() => setPage('dashboard')}><Icons.Dashboard /> Dashboard</button>
+          <button className={`nav-item ${page === 'profile' ? 'active' : ''}`} onClick={() => setPage('profile')}><Icons.User /> Profile</button>
         </nav>
-        <button className="nav-item" onClick={handleLogout} style={{marginTop:'auto', color:'#ef4444'}}>
-          <Icons.Logout /> Logout
-        </button>
+        <button className="nav-item" onClick={handleLogout} style={{marginTop:'auto', color:'#ef4444'}}><Icons.Logout /> Logout</button>
       </aside>
 
-      {/* Main Content */}
+      {/* Main */}
       <main className="main-wrapper">
         <div className="header-glass">
           <div className="date-display">
@@ -294,30 +244,22 @@ function App() {
               <span className="label">Next Scheduled Dose</span>
               <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-end'}}>
                 <div>
-                  <h2 style={{fontSize:'2.5rem', margin:'0.5rem 0 0 0', fontWeight:'700'}}>
-                    {nextMed ? nextMed.name : "All Clear"}
-                  </h2>
+                  <h2 style={{fontSize:'2.5rem', margin:'0.5rem 0 0 0', fontWeight:'700'}}>{nextMed ? nextMed.name : "All Clear"}</h2>
                   <p className="sub-text">{nextMed ? `At ${nextMed.time}` : "You've taken all your medications for today."}</p>
                 </div>
-                {nextMed && (
-                  <button className="action-btn" style={{padding:'12px 24px'}} onClick={() => markTaken(nextMed._id)}>
-                    Take Now
-                  </button>
-                )}
+                {nextMed && <button className="action-btn" onClick={() => markTaken(nextMed._id)}>Take Now</button>}
               </div>
             </div>
 
             <div className="glass-card stat-box" onClick={openAddModal} style={{cursor:'pointer', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center'}}>
-              <div style={{background:'var(--primary)', width:'50px', height:'50px', borderRadius:'25px', display:'flex', alignItems:'center', justifyContent:'center', marginBottom:'1rem'}}>
-                <Icons.Plus />
-              </div>
+              <div style={{background:'var(--primary)', width:'50px', height:'50px', borderRadius:'25px', display:'flex', alignItems:'center', justifyContent:'center', marginBottom:'1rem'}}><Icons.Plus /></div>
               <span style={{fontWeight:'600'}}>Add Med</span>
             </div>
 
             <div className="timeline-section">
               <h3 style={{marginBottom:'1rem', fontSize:'1.2rem'}}>Today's Schedule</h3>
               <div className="med-list">
-                {meds.length === 0 && <div style={{color:'var(--text-muted)', textAlign:'center', padding:'2rem'}}>No medications scheduled for today.</div>}
+                {meds.length === 0 && <div style={{color:'var(--text-muted)', textAlign:'center', padding:'2rem'}}>No medications scheduled.</div>}
                 {meds.sort((a,b) => a.time.localeCompare(b.time)).map((med) => (
                   <motion.div key={med._id} className="med-item" layout>
                     <div className="med-time">{med.time}</div>
@@ -328,11 +270,7 @@ function App() {
                     <div style={{display:'flex', gap:'10px', alignItems:'center'}}>
                       <button onClick={() => openEditModal(med)} style={{background:'none', border:'none', color:'var(--text-muted)', cursor:'pointer'}}><Icons.Edit /></button>
                       <button onClick={() => handleDeleteMed(med._id)} style={{background:'none', border:'none', color:'#ef4444', cursor:'pointer'}}><Icons.Trash /></button>
-                      {med.status === 'taken' ? (
-                         <div style={{color:'#10b981', display:'flex', alignItems:'center', gap:'8px', fontWeight:'600'}}><Icons.Check /> Taken</div>
-                      ) : (
-                        <button className="action-btn" onClick={() => markTaken(med._id)}>Mark</button>
-                      )}
+                      {med.status === 'taken' ? <div style={{color:'#10b981', display:'flex', alignItems:'center', gap:'8px', fontWeight:'600'}}><Icons.Check /> Taken</div> : <button className="action-btn" onClick={() => markTaken(med._id)}>Mark</button>}
                     </div>
                   </motion.div>
                 ))}
@@ -346,121 +284,67 @@ function App() {
             <div className="glass-card" style={{gridColumn: 'span 2'}}>
                <div style={{display:'flex', alignItems:'center', gap:'1rem', marginBottom:'1.5rem'}}>
                  <div style={{width:'60px', height:'60px', borderRadius:'30px', background:'var(--bg-card-hover)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'1.5rem'}}>👤</div>
-                 <div>
-                   <h2 style={{margin:0}}>{user.email.split('@')[0]}</h2>
-                   <p className="sub-text">{user.email}</p>
-                 </div>
+                 <div><h2 style={{margin:0}}>{user.email.split('@')[0]}</h2><p className="sub-text">{user.email}</p></div>
                </div>
                <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'1rem'}}>
-                 <div className="stat-box" style={{background:'rgba(255,255,255,0.03)', padding:'1rem', borderRadius:'12px'}}>
-                   <span className="label">Total Discount</span>
-                   <div className="value" style={{fontSize:'1.5rem'}}>{user.totalDiscount}% OFF</div>
-                 </div>
-                 <div className="stat-box" style={{background:'rgba(255,255,255,0.03)', padding:'1rem', borderRadius:'12px'}}>
-                   <span className="label">Current Streak</span>
-                   <div className="value" style={{fontSize:'1.5rem'}}>{user.streak} Days</div>
-                 </div>
+                 <div className="stat-box" style={{background:'rgba(255,255,255,0.03)', padding:'1rem', borderRadius:'12px'}}><span className="label">Total Discount</span><div className="value" style={{fontSize:'1.5rem'}}>{user.totalDiscount}% OFF</div></div>
+                 <div className="stat-box" style={{background:'rgba(255,255,255,0.03)', padding:'1rem', borderRadius:'12px'}}><span className="label">Current Streak</span><div className="value" style={{fontSize:'1.5rem'}}>{user.streak} Days</div></div>
                </div>
             </div>
 
             <div className="glass-card" style={{gridColumn: 'span 2'}}>
-               {/* Fixed Header Alignment */}
-               <div className="card-header-row">
-                  <span className="card-title"><Icons.Heart /> Care Network</span>
-                  {user.caregiverEmail && <span style={{color:'#10b981', fontSize:'0.8rem'}}>● Active</span>}
-               </div>
-               
+               <div className="card-header-row"><span className="card-title"><Icons.Heart /> Care Network</span>{user.caregiverEmail && <span style={{color:'#10b981', fontSize:'0.8rem'}}>● Active</span>}</div>
                {user.caregiverEmail ? (
                  <>
                    <h3 style={{margin:'0 0 0.5rem 0'}}>{user.caregiverEmail}</h3>
                    <p className="sub-text">Receives alerts for missed doses.</p>
-                   <button className="action-btn" style={{marginTop:'1.5rem', width:'100%', background:'transparent', border:'1px solid var(--primary)'}} onClick={notifyCaregiver}>
-                     <Icons.Bell /> Send Test Alert
-                   </button>
+                   <button className="action-btn" style={{marginTop:'1.5rem', width:'100%', background:'transparent', border:'1px solid var(--primary)'}} onClick={notifyCaregiver}><Icons.Bell /> Send Test Alert</button>
                  </>
                ) : (
                  <div style={{textAlign:'center', padding:'1rem'}}>
                    <p className="sub-text">No caregiver linked.</p>
-                   {/* FIXED Link Caregiver Button */}
-                   <button className="action-btn" style={{marginTop:'0.5rem'}} onClick={openCaregiverModal}>
-                     Link Caregiver
-                   </button>
+                   <button className="action-btn" style={{marginTop:'0.5rem'}} onClick={openCaregiverModal}>Link Caregiver</button>
                  </div>
                )}
             </div>
 
             <div className="glass-card" style={{gridColumn: 'span 4'}}>
-               {/* Fixed Add New Button Alignment */}
-               <div className="card-header-row">
-                 <h2 style={{fontSize:'1.25rem', margin:0}}>My Prescriptions</h2>
-                 <button className="action-btn" onClick={openAddModal}><Icons.Plus /> Add New</button>
-               </div>
-               
+               <div className="card-header-row"><h2 style={{fontSize:'1.25rem', margin:0}}>My Prescriptions</h2><button className="action-btn" onClick={openAddModal}><Icons.Plus /> Add New</button></div>
                <div className="med-list">
-                 {user.medications && user.medications.length > 0 ? (
-                   user.medications.map((m, idx) => (
-                     <div key={idx} className="med-item" style={{cursor:'default'}}>
-                       <div style={{width:'40px', height:'40px', background:'var(--bg-app)', borderRadius:'8px', display:'flex', alignItems:'center', justifyContent:'center'}}>💊</div>
-                       <div style={{flex:1}}>
-                         <h3 style={{fontSize:'1rem', margin:0}}>{m.name}</h3>
-                         <p className="sub-text">{m.recurrence} • {m.time} • {m.dosage || '1 pill'}</p>
-                       </div>
-                       <div className="pill" style={{fontSize:'0.8rem', padding:'4px 10px'}}>Active</div>
-                     </div>
-                   ))
-                 ) : (
-                   <p className="sub-text" style={{textAlign:'center', padding:'2rem'}}>No prescriptions on file.</p>
-                 )}
+                 {user.medications && user.medications.length > 0 ? user.medications.map((m, idx) => (
+                   <div key={idx} className="med-item" style={{cursor:'default'}}>
+                     <div style={{width:'40px', height:'40px', background:'var(--bg-app)', borderRadius:'8px', display:'flex', alignItems:'center', justifyContent:'center'}}>💊</div>
+                     <div style={{flex:1}}><h3 style={{fontSize:'1rem', margin:0}}>{m.name}</h3><p className="sub-text">{m.recurrence} • {m.time}</p></div>
+                     <div className="pill" style={{fontSize:'0.8rem', padding:'4px 10px'}}>Active</div>
+                   </div>
+                 )) : <p className="sub-text" style={{textAlign:'center', padding:'2rem'}}>No prescriptions on file.</p>}
                </div>
             </div>
           </motion.div>
         )}
       </main>
 
-      {/* --- REUSABLE MODAL CONTENT --- */}
-      <Modal isOpen={!!modalType} onClose={closeModal} title={modalType === 'caregiver' ? 'Caregiver Settings' : (modalType === 'editMed' ? 'Edit Medication' : 'Add Medication')}>
+      {/* --- MODAL --- */}
+      <Modal isOpen={!!activeModal} onClose={closeModal} title={activeModal === 'caregiver' ? 'Link Caregiver' : (activeModal === 'editMed' ? 'Edit Medication' : 'Add Medication')}>
         
-        {/* VIEW 1: Add/Edit Medication */}
-        {(modalType === 'addMed' || modalType === 'editMed') && (
+        {(activeModal === 'addMed' || activeModal === 'editMed') && (
           <div style={{display:'flex', flexDirection:'column', gap:'1.25rem'}}>
-            <div>
-              <label className="label" style={{marginBottom:'8px', display:'block'}}>Medicine Name</label>
-              <input className="input-modern" placeholder="e.g. Amoxicillin" value={medName} onChange={e => setMedName(e.target.value)} autoFocus />
-            </div>
+            <div><label className="label" style={{marginBottom:'8px', display:'block'}}>Name</label><input className="input-modern" placeholder="e.g. Amoxicillin" value={medName} onChange={e => setMedName(e.target.value)} autoFocus /></div>
             <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'1rem'}}>
-              <div>
-                <label className="label" style={{marginBottom:'8px', display:'block'}}>Time</label>
-                <input className="input-modern" type="time" value={medTime} onChange={e => setMedTime(e.target.value)} />
-              </div>
-              <div>
-                <label className="label" style={{marginBottom:'8px', display:'block'}}>Recurrence</label>
-                <select className="input-modern" value={recurrence} onChange={e => setRecurrence(e.target.value)}>
-                  <option value="daily">Daily</option>
-                  <option value="weekly">Weekly</option>
-                  <option value="none">One-time</option>
-                </select>
-              </div>
+              <div><label className="label" style={{marginBottom:'8px', display:'block'}}>Time</label><input className="input-modern" type="time" value={medTime} onChange={e => setMedTime(e.target.value)} /></div>
+              <div><label className="label" style={{marginBottom:'8px', display:'block'}}>Recurrence</label><select className="input-modern" value={recurrence} onChange={e => setRecurrence(e.target.value)}><option value="daily">Daily</option><option value="weekly">Weekly</option></select></div>
             </div>
-            <button className="action-btn" style={{width:'100%', padding:'14px', marginTop:'0.5rem'}} onClick={handleMedSubmit}>
-              {loading ? 'Saving...' : 'Save Schedule'}
-            </button>
+            <button className="action-btn" style={{width:'100%', marginTop:'0.5rem'}} onClick={handleMedSubmit}>{loading ? 'Saving...' : 'Save'}</button>
           </div>
         )}
 
-        {/* VIEW 2: Caregiver Link */}
-        {modalType === 'caregiver' && (
+        {activeModal === 'caregiver' && (
           <div style={{display:'flex', flexDirection:'column', gap:'1.25rem'}}>
-            <p className="sub-text">Enter the email address of a family member or caregiver. They will receive alerts if you miss a dose.</p>
-            <div>
-              <label className="label" style={{marginBottom:'8px', display:'block'}}>Caregiver Email</label>
-              <input className="input-modern" type="email" placeholder="name@example.com" value={newCaregiverEmail} onChange={e => setNewCaregiverEmail(e.target.value)} autoFocus />
-            </div>
-            <button className="action-btn" style={{width:'100%', padding:'14px', marginTop:'0.5rem'}} onClick={handleCaregiverSubmit}>
-              Link Account
-            </button>
+            <p className="sub-text">Enter email to receive alerts.</p>
+            <div><label className="label" style={{marginBottom:'8px', display:'block'}}>Email</label><input className="input-modern" type="email" value={newCaregiverEmail} onChange={e => setNewCaregiverEmail(e.target.value)} autoFocus /></div>
+            <button className="action-btn" style={{width:'100%', marginTop:'0.5rem'}} onClick={handleCaregiverSubmit}>Link Account</button>
           </div>
         )}
-
       </Modal>
     </div>
   );
