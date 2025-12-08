@@ -16,22 +16,41 @@ dotenv.config();
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: 'http://localhost:5173' } });
 
-admin.initializeApp({
-  credential: admin.credential.cert(process.env.FIREBASE_KEY_PATH),
+// --- DYNAMIC CORS CONFIGURATION ---
+// In production, we use the CLIENT_URL env var. Locally, we fall back to 5173.
+const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+
+const io = new Server(server, { 
+  cors: { 
+    origin: clientUrl,
+    methods: ["GET", "POST"],
+    credentials: true
+  } 
 });
 
-app.use(cors({ origin: 'http://localhost:5173', credentials: true }));
+app.use(cors({ 
+  origin: clientUrl, 
+  credentials: true 
+}));
+
 app.use(express.json());
 app.use((req, res, next) => {
   req.io = io;
   next();
 });
 
+// --- FIREBASE SETUP ---
+// NOTE: On Render, we will upload this file as a "Secret File" to /etc/secrets/service-account.json
+admin.initializeApp({
+  credential: admin.credential.cert(process.env.FIREBASE_KEY_PATH),
+});
+
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log('✅ MongoDB Connected'))
   .catch((err) => console.error('❌ MongoDB Error:', err));
+
+// ... (Rest of your seeding logic and routes remain the same) ...
 
 const seedUser = async () => {
   try {
@@ -46,8 +65,6 @@ const seedUser = async () => {
       });
       await user.save();
       console.log('Test user seeded: test@example.com / 123');
-    } else {
-      console.log('Test user already exists:', existingUser.email);
     }
   } catch (err) {
     console.error('User seeding error:', err);
@@ -55,11 +72,11 @@ const seedUser = async () => {
 };
 
 const seedData = async () => {
-  await seedUser(); // Seed user only if not present
+  await seedUser(); 
 };
 seedData();
 
-app.get('/', (req, res) => res.send('✅ Backend running!'));
+app.get('/', (req, res) => res.send('✅ Backend is Running!'));
 app.use('/api/users', userRoutes);
 app.use('/api/medications', medicationRoutes);
 app.use('/api/notifications', notificationRoutes);
@@ -67,10 +84,8 @@ app.use('/api/notifications', notificationRoutes);
 app.get('/api/medications/user/:userId', async (req, res) => {
   try {
     const meds = await Medication.find({ userId: req.params.userId });
-    console.log('Returning meds for user:', req.params.userId, meds);
     res.status(200).json(meds);
   } catch (err) {
-    console.error('Fetch user meds error:', err.stack || err.message);
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 });
@@ -83,4 +98,4 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 5000;
-server.listen(PORT, () => console.log(`🚀 Server on http://localhost:${PORT}`));
+server.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
