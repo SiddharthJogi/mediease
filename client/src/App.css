@@ -442,3 +442,131 @@ button, input, select, textarea { font-family: inherit; }
     justify-content: space-between;
   }
 }
+
+
+/* --- MOBILE NAVIGATION BAR --- */
+.mobile-nav {
+  display: none; /* Hidden on Desktop */
+}
+
+/* --- MOBILE BREAKPOINT (Tablets & Phones) --- */
+@media (max-width: 768px) {
+  /* 1. Layout Reset */
+  .app-layout {
+    grid-template-columns: 1fr; /* Remove sidebar column */
+    display: block; /* Stack vertically */
+  }
+
+  /* 2. Hide Desktop Sidebar */
+  .sidebar { display: none; }
+
+  /* 3. Show Mobile Nav */
+  .mobile-nav {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 80px;
+    background: rgba(10, 10, 15, 0.95); /* High contrast dark */
+    backdrop-filter: blur(20px);
+    border-top: 1px solid var(--border-subtle);
+    z-index: 999;
+    padding-bottom: 15px; /* Safe area for iPhone home bar */
+  }
+
+  .mobile-nav-item {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 8px 16px;
+    border-radius: 12px;
+    transition: all 0.2s;
+  }
+
+  .mobile-nav-item.active {
+    color: var(--primary);
+    background: rgba(99, 102, 241, 0.1);
+  }
+
+  .mobile-nav-item svg {
+    width: 24px;
+    height: 24px;
+  }
+
+  /* 4. Grid Stacking (The "Widget" Look) */
+  .main-wrapper {
+    padding: 1.5rem;
+    padding-bottom: 100px; /* Space for Bottom Nav */
+    max-width: 100%;
+  }
+
+  .bento-grid {
+    grid-template-columns: 1fr; /* Single Column */
+    gap: 1.5rem;
+  }
+
+  /* Force Full Width on all cards */
+  .header-unified, 
+  .hero-card, 
+  .stat-box, 
+  .split-card-row, 
+  .glass-card {
+    grid-column: span 1 !important;
+  }
+
+  /* 5. Header Adjustments */
+  .header-unified {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1.5rem;
+    padding: 1.5rem;
+  }
+
+  .header-right {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .stat-group {
+    border-right: none;
+    flex: 1;
+    justify-content: space-between;
+    padding-right: 0;
+  }
+
+  /* 6. Split Row (Next Up + Add) Stacking */
+  .split-card-row {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+
+  /* Make "Add Med" button big and tappable */
+  .center-content {
+    flex-direction: row;
+    justify-content: flex-start;
+    padding: 1.5rem;
+    gap: 1.5rem;
+    min-height: 80px;
+  }
+
+  /* 7. Typography Tweaks */
+  h1.page-title { font-size: 1.8rem; }
+  .hero-title { font-size: 2rem; }
+  
+  /* 8. Auth Page Mobile Fix */
+  .auth-box {
+    padding: 2rem;
+    width: 90%;
+  }
+}
