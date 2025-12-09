@@ -6,31 +6,36 @@ import Sidebar from './components/Sidebar';
 import Auth from './components/Auth';
 import Dashboard from './components/Dashboard';
 import Profile from './components/Profile';
+import Streaks from './components/Streaks';
 import { commonMedicines } from './data/indianMedicines';
 import './App.css';
 
 function App() {
- 
-  const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+  const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'; 
+  const [theme, setTheme] = useState('dark');
 
-  // --- STATE ---
+  const toggleTheme = () => {
+    const newTheme = theme === 'dark' ? 'light' : 'dark';
+    setTheme(newTheme);
+    document.documentElement.setAttribute('data-theme', newTheme);
+  };
+
+  useEffect(() => { document.documentElement.setAttribute('data-theme', theme); }, []);
+
   const [page, setPage] = useState('auth');
   const [loading, setLoading] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
-  const [modalType, setModalType] = useState(null); // 'addMed', 'editMed', 'caregiver'
-  
-  // Data State
+  const [modalType, setModalType] = useState(null); 
   const [user, setUser] = useState(null);
   const [meds, setMeds] = useState([]);
 
-  // Form State
+  // Forms
   const [medName, setMedName] = useState('');
   const [medTime, setMedTime] = useState('');
   const [recurrence, setRecurrence] = useState('daily');
   const [newCaregiverEmail, setNewCaregiverEmail] = useState('');
   const [selectedMedId, setSelectedMedId] = useState(null);
 
-  // --- INIT ---
   useEffect(() => {
     const saved = localStorage.getItem('mediease_user');
     if (saved) {
@@ -55,41 +60,17 @@ function App() {
     } catch (e) { console.error("Data load failed", e); }
   };
 
-  // --- MODAL HANDLERS ---
-  const openAddModal = () => {
-    setModalType('addMed');
-    setMedName('');
-    setMedTime('');
-    setRecurrence('daily');
-    setSelectedMedId(null);
-  };
-
-  const openEditModal = (med) => {
-    setModalType('editMed');
-    setSelectedMedId(med._id);
-    setMedName(med.name);
-    setMedTime(med.time);
-    setRecurrence(med.recurrence || 'daily');
-  };
-
-  const openCaregiverModal = () => {
-    setModalType('caregiver');
-    setNewCaregiverEmail(user.caregiverEmail || '');
-  };
-
+  const openAddModal = () => { setModalType('addMed'); setMedName(''); setMedTime(''); setRecurrence('daily'); setSelectedMedId(null); };
+  const openEditModal = (med) => { setModalType('editMed'); setSelectedMedId(med._id); setMedName(med.name); setMedTime(med.time); setRecurrence(med.recurrence || 'daily'); };
+  const openCaregiverModal = () => { setModalType('caregiver'); setNewCaregiverEmail(user.caregiverEmail || ''); };
   const closeModal = () => setModalType(null);
 
-  // --- API ACTIONS ---
   const handleMedSubmit = async () => {
-    if (!medName || !medTime || !user) {
-      alert("Please ensure all fields are filled.");
-      return;
-    }
+    if (!medName || !medTime || !user) return alert("Fill all fields.");
     setLoading(true);
     try {
       const date = new Date().toISOString().split('T')[0];
       const payload = { userId: user.userId, name: medName, time: medTime, date, recurrence };
-
       if (modalType === 'editMed' && selectedMedId) {
         await axios.put(`${BASE_URL}/api/medications/update/${selectedMedId}`, payload);
       } else {
@@ -99,41 +80,25 @@ function App() {
       }
       closeModal();
       refreshData(user.userId);
-    } catch (e) { alert("Operation failed."); } 
-    finally { setLoading(false); }
+    } catch (e) { alert("Failed."); } finally { setLoading(false); }
   };
 
   const handleCaregiverSubmit = async () => {
-    if (!newCaregiverEmail || !user) return alert("Enter valid email");
+    if (!newCaregiverEmail) return;
     try {
-      const res = await axios.put(`${BASE_URL}/api/users/profile/${user.userId}`, { caregiverEmail: newCaregiverEmail });
-      if (res.status === 200) {
-        setUser({ ...user, caregiverEmail: newCaregiverEmail });
-        closeModal();
-        alert("Caregiver linked!");
-      }
-    } catch (e) { alert("Failed to link."); }
+      await axios.put(`${BASE_URL}/api/users/profile/${user.userId}`, { caregiverEmail: newCaregiverEmail });
+      closeModal();
+      refreshData(user.userId);
+      alert("Linked!");
+    } catch (e) { alert("Failed."); }
   };
 
   const handleDeleteMed = async (id) => {
-    if(!window.confirm("Are you sure you want to permanently delete this medication?")) return;
+    if(!window.confirm("Delete?")) return;
     try {
       await axios.delete(`${BASE_URL}/api/medications/delete/${id}`);
-      
-      // FIX: Refresh BOTH Meds (Dashboard) and User Profile (Profile Tab)
-      await refreshData(user.userId); 
-      
-      // OPTIONAL: Manually filter the local state for instant feedback before the API returns
-      // setMeds(prev => prev.filter(m => m._id !== id));
-      // setUser(prev => ({
-      //   ...prev,
-      //   medications: prev.medications.filter(...) // Complex without IDs in user profile
-      // }));
-      
-    } catch (e) { 
-      console.error("Delete failed:", e);
-      alert("Failed to delete. Check console."); 
-    }
+      refreshData(user.userId);
+    } catch (e) { alert("Failed."); }
   };
 
   const markTaken = async (id) => {
@@ -148,8 +113,8 @@ function App() {
     if(!user.caregiverEmail) return alert("No caregiver linked.");
     try {
       await axios.post(`${BASE_URL}/api/notifications/notify-caregiver`, { userId: user.userId, type: 'email' });
-      alert("Alert sent!");
-    } catch(e) { alert("Failed to send."); }
+      alert("Sent!");
+    } catch(e) { alert("Failed."); }
   };
 
   const handleLogout = () => {
@@ -158,7 +123,6 @@ function App() {
     setPage('auth');
   };
 
-  // --- RENDER ---
   if (page === 'auth') {
     return <Auth setUser={setUser} setPage={setPage} refreshData={refreshData} BASE_URL={BASE_URL} />;
   }
@@ -169,79 +133,41 @@ function App() {
       <Sidebar page={page} setPage={setPage} handleLogout={handleLogout} />
       
       <main className="main-wrapper">
-        <div className="header-glass">
-          <div className="date-display">
-            <h1>{page === 'dashboard' ? 'Overview' : 'My Profile'}</h1>
-            <p>{new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</p>
-          </div>
-          <div className="status-pills">
-            {user && (
-              <>
-                <div className="pill" style={{borderColor: '#f59e0b', color: '#f59e0b'}}>🔥 {user.streak || 0} Streak</div>
-                <div className="pill" style={{borderColor: '#6366f1', color: '#6366f1'}}>💎 {user.points || 0} Pts</div>
-              </>
-            )}
-          </div>
-        </div>
-
         {page === 'dashboard' && (
           <Dashboard 
-            meds={meds} 
-            openAddModal={openAddModal} 
-            markTaken={markTaken} 
-            openEditModal={openEditModal} 
-            handleDeleteMed={handleDeleteMed} 
+            user={user} meds={meds} theme={theme} toggleTheme={toggleTheme}
+            openAddModal={openAddModal} markTaken={markTaken} openEditModal={openEditModal} handleDeleteMed={handleDeleteMed} 
           />
         )}
 
         {page === 'profile' && user && (
           <Profile 
-            user={user}
-            meds={meds} // <--- PASSING THE REAL LIST HERE
-            openCaregiverModal={openCaregiverModal} 
-            notifyCaregiver={notifyCaregiver} 
-            openAddModal={openAddModal} 
+            user={user} meds={meds} theme={theme} toggleTheme={toggleTheme}
+            openCaregiverModal={openCaregiverModal} notifyCaregiver={notifyCaregiver} openAddModal={openAddModal} 
           />
+        )}
+        
+        {page === 'streaks' && user && (
+          <Streaks user={user} theme={theme} toggleTheme={toggleTheme} />
         )}
       </main>
 
-      {/* --- MODAL --- */}
       <Modal isOpen={!!modalType} onClose={closeModal} title={modalType === 'caregiver' ? 'Link Caregiver' : (modalType === 'editMed' ? 'Edit Medication' : 'Add Medication')}>
-        
         {(modalType === 'addMed' || modalType === 'editMed') && (
-          <div style={{display:'flex', flexDirection:'column', gap:'1.25rem'}}>
-            {/* Inside the Modal, replace the existing Name input div with this: */}
-
-          <div>
-            <label className="label" style={{marginBottom:'8px', display:'block'}}>Medicine Name</label>
-            <input 
-              className="input-modern" 
-              placeholder="e.g. Dolo 650" 
-              value={medName} 
-              onChange={e => setMedName(e.target.value)} 
-              list="med-suggestions" // <--- Connects to the datalist
-              autoFocus 
-            />
-            {/* The Data List for Autocomplete */}
-            <datalist id="med-suggestions">
-              {commonMedicines.map((med, index) => (
-                <option key={index} value={med} />
-              ))}
-            </datalist>
-          </div>
+          <div style={{display:'flex', flexDirection:'column', gap:'1rem'}}>
+            <div><label className="label">Name</label><input className="input-modern" placeholder="e.g. Dolo 650" value={medName} onChange={e => setMedName(e.target.value)} list="med-suggestions" autoFocus /><datalist id="med-suggestions">{commonMedicines.map((m,i)=><option key={i} value={m}/>)}</datalist></div>
             <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:'1rem'}}>
-              <div><label className="label" style={{marginBottom:'8px', display:'block'}}>Time</label><input className="input-modern" type="time" value={medTime} onChange={e => setMedTime(e.target.value)} /></div>
-              <div><label className="label" style={{marginBottom:'8px', display:'block'}}>Recurrence</label><select className="input-modern" value={recurrence} onChange={e => setRecurrence(e.target.value)}><option value="daily">Daily</option><option value="weekly">Weekly</option></select></div>
+              <div><label className="label">Time</label><input className="input-modern" type="time" value={medTime} onChange={e => setMedTime(e.target.value)} /></div>
+              <div><label className="label">Recurrence</label><select className="input-modern" value={recurrence} onChange={e => setRecurrence(e.target.value)}><option value="daily">Daily</option><option value="weekly">Weekly</option></select></div>
             </div>
-            <button className="action-btn" style={{width:'100%', marginTop:'0.5rem'}} onClick={handleMedSubmit}>{loading ? 'Saving...' : 'Save'}</button>
+            <button className="action-btn" style={{width:'100%'}} onClick={handleMedSubmit}>{loading ? 'Saving...' : 'Save'}</button>
           </div>
         )}
-
         {modalType === 'caregiver' && (
-          <div style={{display:'flex', flexDirection:'column', gap:'1.25rem'}}>
+          <div style={{display:'flex', flexDirection:'column', gap:'1rem'}}>
             <p className="sub-text">Enter email to receive alerts.</p>
-            <div><label className="label" style={{marginBottom:'8px', display:'block'}}>Email</label><input className="input-modern" type="email" value={newCaregiverEmail} onChange={e => setNewCaregiverEmail(e.target.value)} autoFocus /></div>
-            <button className="action-btn" style={{width:'100%', marginTop:'0.5rem'}} onClick={handleCaregiverSubmit}>Link Account</button>
+            <input className="input-modern" type="email" value={newCaregiverEmail} onChange={e => setNewCaregiverEmail(e.target.value)} placeholder="name@example.com" />
+            <button className="action-btn" style={{width:'100%'}} onClick={handleCaregiverSubmit}>Link Account</button>
           </div>
         )}
       </Modal>
