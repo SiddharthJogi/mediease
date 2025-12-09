@@ -381,3 +381,64 @@ button, input, select, textarea { font-family: inherit; }
 .modal-header h2 { margin: 0; font-size: 1.5rem; font-weight: 800; color: var(--text-main); }
 .close-btn { position: absolute; top: 1.5rem; right: 1.5rem; background: transparent; border: 1px solid var(--border-subtle); color: var(--text-muted); width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; font-size: 1.2rem; }
 .close-btn:hover { background: var(--bg-card-hover); color: var(--text-main); }
+
+
+
+/* --- MOBILE APP / WIDGET MODE --- */
+@media (max-width: 768px) {
+  /* 1. Stack Layout */
+  .app-layout {
+    grid-template-columns: 1fr; /* Sidebar disappears from grid */
+    height: auto;
+    min-height: 100vh;
+  }
+
+  /* 2. Hide Desktop Sidebar */
+  .sidebar {
+    display: none; 
+  }
+
+  /* 3. Adjust Main Padding for Mobile */
+  .main-wrapper {
+    padding: 1.5rem;
+    padding-bottom: 6rem; /* Space for bottom nav if we add one later */
+  }
+
+  /* 4. Single Column Grid */
+  .bento-grid {
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+  }
+
+  /* 5. Force Full Width for Key Cards */
+  .header-unified, .split-card-row, .glass-card, .hero-card {
+    grid-column: span 1 !important;
+  }
+
+  /* 6. Stack the Split Row (Next Up + Add Med) */
+  .split-card-row {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+
+  /* 7. Make "Add Med" Button Big & Accessible (Thumb Zone) */
+  .center-content {
+    flex-direction: row;
+    justify-content: flex-start;
+    padding: 1.25rem;
+    gap: 1rem;
+  }
+  
+  /* 8. Mobile Header Adjustments */
+  .header-unified {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 1.5rem;
+  }
+  .header-right {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
