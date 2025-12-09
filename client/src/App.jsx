@@ -5,7 +5,7 @@ import Confetti from 'react-confetti';
 // Component Imports
 import Modal from './components/Modal';
 import Sidebar from './components/Sidebar';
-import MobileNav from './components/MobileNav'; // <--- NEW IMPORT
+import MobileNav from './components/MobileNav';
 import Auth from './components/Auth';
 import Dashboard from './components/Dashboard';
 import Profile from './components/Profile';
@@ -28,7 +28,6 @@ function App() {
     document.documentElement.setAttribute('data-theme', newTheme);
   };
 
-  // Set default theme on load
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
   }, []);
@@ -41,6 +40,10 @@ function App() {
   
   const [user, setUser] = useState(null);
   const [meds, setMeds] = useState([]);
+
+  // AI State
+  const [aiLoading, setAiLoading] = useState(false);
+  const [medInfo, setMedInfo] = useState(null);
 
   // Forms
   const [medName, setMedName] = useState('');
@@ -79,6 +82,26 @@ function App() {
   const openEditModal = (med) => { setModalType('editMed'); setSelectedMedId(med._id); setMedName(med.name); setMedTime(med.time); setRecurrence(med.recurrence || 'daily'); };
   const openCaregiverModal = () => { setModalType('caregiver'); setNewCaregiverEmail(user.caregiverEmail || ''); };
   const closeModal = () => setModalType(null);
+
+  // --- AI HANDLER ---
+  const handleGetInfo = async (name) => {
+    setModalType('aiInfo');
+    setMedInfo(null);
+    setAiLoading(true);
+    
+    try {
+      const res = await axios.post(`${BASE_URL}/api/ai/medicine-info`, { medicineName: name });
+      setMedInfo(res.data);
+    } catch (e) {
+      setMedInfo({ 
+        usage: "Could not fetch info.", 
+        sideEffects: "Please try again later.", 
+        alcoholWarning: "Data unavailable." 
+      });
+    } finally {
+      setAiLoading(false);
+    }
+  };
 
   const handleMedSubmit = async () => {
     if (!medName || !medTime || !user) return alert("Fill all fields.");
@@ -138,7 +161,6 @@ function App() {
     setPage('auth');
   };
 
-  // --- RENDER ---
   if (page === 'auth') {
     return <Auth setUser={setUser} setPage={setPage} refreshData={refreshData} BASE_URL={BASE_URL} />;
   }
@@ -147,7 +169,6 @@ function App() {
     <div className="app-layout">
       {showConfetti && <Confetti numberOfPieces={200} recycle={false} />}
       
-      {/* Desktop Sidebar */}
       <Sidebar 
         page={page} 
         setPage={setPage} 
@@ -156,12 +177,13 @@ function App() {
         toggleTheme={toggleTheme} 
       />
       
-      {/* Main Content Area */}
       <main className="main-wrapper">
         {page === 'dashboard' && (
           <Dashboard 
             user={user} meds={meds} theme={theme} toggleTheme={toggleTheme}
-            openAddModal={openAddModal} markTaken={markTaken} openEditModal={openEditModal} handleDeleteMed={handleDeleteMed} 
+            openAddModal={openAddModal} markTaken={markTaken} 
+            openEditModal={openEditModal} handleDeleteMed={handleDeleteMed}
+            handleGetInfo={handleGetInfo} // <--- Pass the AI handler
           />
         )}
 
@@ -177,11 +199,51 @@ function App() {
         )}
       </main>
 
-      {/* NEW: Mobile Navigation (Shows only on mobile via CSS) */}
       <MobileNav page={page} setPage={setPage} />
 
-      {/* Modals */}
-      <Modal isOpen={!!modalType} onClose={closeModal} title={modalType === 'caregiver' ? 'Link Caregiver' : (modalType === 'editMed' ? 'Edit Medication' : 'Add Medication')}>
+      <Modal isOpen={!!modalType} onClose={closeModal} 
+        title={
+          modalType === 'caregiver' ? 'Link Caregiver' : 
+          (modalType === 'aiInfo' ? 'Medicine Insights' : 
+          (modalType === 'editMed' ? 'Edit Medication' : 'Add Medication'))
+        }
+      >
+        {/* --- AI INFO MODAL --- */}
+        {modalType === 'aiInfo' && (
+          <div style={{display:'flex', flexDirection:'column', gap:'1.5rem'}}>
+            {aiLoading ? (
+              <div style={{textAlign:'center', padding:'2rem', color:'var(--text-muted)'}}>
+                <div style={{fontSize:'2rem', marginBottom:'1rem'}}>🤖</div>
+                <p>Asking Gemini...</p>
+              </div>
+            ) : medInfo ? (
+              <>
+                <div style={{background:'rgba(99, 102, 241, 0.1)', padding:'1.25rem', borderRadius:'12px', border:'1px solid var(--primary)'}}>
+                  <label className="label" style={{color:'var(--primary)', marginBottom:'4px'}}>Usage</label>
+                  <p style={{margin:0, fontSize:'1rem', lineHeight:'1.5'}}>{medInfo.usage}</p>
+                </div>
+                
+                <div>
+                  <label className="label">Common Side Effects</label>
+                  <p style={{margin:0, color:'var(--text-main)', lineHeight:'1.5'}}>{medInfo.sideEffects}</p>
+                </div>
+
+                <div>
+                  <label className="label" style={{color:'#ef4444'}}>Alcohol Warning</label>
+                  <p style={{margin:0, color:'var(--text-main)'}}>{medInfo.alcoholWarning}</p>
+                </div>
+              </>
+            ) : null}
+            
+            {!aiLoading && (
+              <button className="action-btn" style={{width:'100%', marginTop:'0.5rem'}} onClick={closeModal}>
+                Got it
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* --- ADD/EDIT MODAL --- */}
         {(modalType === 'addMed' || modalType === 'editMed') && (
           <div style={{display:'flex', flexDirection:'column', gap:'1rem'}}>
             <div>
@@ -193,14 +255,16 @@ function App() {
               <div><label className="label">Time</label><input className="input-modern" type="time" value={medTime} onChange={e => setMedTime(e.target.value)} /></div>
               <div><label className="label">Recurrence</label><select className="input-modern" value={recurrence} onChange={e => setRecurrence(e.target.value)}><option value="daily">Daily</option><option value="weekly">Weekly</option></select></div>
             </div>
-            <button className="action-btn" style={{width:'100%', marginTop:'0.5rem'}} onClick={handleMedSubmit}>{loading ? 'Saving...' : 'Save'}</button>
+            <button className="action-btn" style={{width:'100%'}} onClick={handleMedSubmit}>{loading ? 'Saving...' : 'Save'}</button>
           </div>
         )}
+
+        {/* --- CAREGIVER MODAL --- */}
         {modalType === 'caregiver' && (
           <div style={{display:'flex', flexDirection:'column', gap:'1rem'}}>
             <p className="sub-text">Enter email to receive alerts.</p>
             <input className="input-modern" type="email" value={newCaregiverEmail} onChange={e => setNewCaregiverEmail(e.target.value)} placeholder="name@example.com" />
-            <button className="action-btn" style={{width:'100%', marginTop:'0.5rem'}} onClick={handleCaregiverSubmit}>Link Account</button>
+            <button className="action-btn" style={{width:'100%'}} onClick={handleCaregiverSubmit}>Link Account</button>
           </div>
         )}
       </Modal>

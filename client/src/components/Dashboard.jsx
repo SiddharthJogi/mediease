@@ -2,7 +2,17 @@ import React, { useEffect, useRef } from 'react';
 import { gsap } from 'gsap';
 import { Icons } from './Icons';
 
-const Dashboard = ({ user, meds, theme, toggleTheme, openAddModal, markTaken, openEditModal, handleDeleteMed }) => {
+const Dashboard = ({ 
+  user, 
+  meds, 
+  theme, 
+  toggleTheme, 
+  openAddModal, 
+  markTaken, 
+  openEditModal, 
+  handleDeleteMed, 
+  handleGetInfo 
+}) => {
   const containerRef = useRef(null);
   
   useEffect(() => {
@@ -94,10 +104,26 @@ const Dashboard = ({ user, meds, theme, toggleTheme, openAddModal, markTaken, op
                 <h3 style={{fontSize:'1.1rem', margin:0, fontWeight:'600'}}>{med.name}</h3>
                 <p style={{fontSize:'0.9rem', color:'var(--text-muted)', margin:'4px 0 0 0'}}>{med.dosage || 'Standard Dose'}</p>
               </div>
-              <div style={{display:'flex', gap:'12px'}}>
-                <button onClick={() => openEditModal(med)} style={{background:'none', border:'none', cursor:'pointer', color:'var(--text-muted)'}}><Icons.Edit /></button>
-                <button onClick={() => handleDeleteMed(med._id)} style={{background:'none', border:'none', cursor:'pointer', color:'#ef4444'}}><Icons.Trash /></button>
-                {med.status === 'taken' ? <div style={{color:'#10b981', display:'flex', alignItems:'center', gap:'6px', fontWeight:'700'}}><Icons.Check /> Taken</div> : <button className="action-btn" style={{padding:'8px 16px', fontSize:'0.85rem'}} onClick={() => markTaken(med._id)}>Mark</button>}
+              <div style={{display:'flex', gap:'10px'}}>
+                {/* NEW: AI INFO BUTTON */}
+                <button 
+                  onClick={() => handleGetInfo(med.name)} 
+                  style={{background:'none', border:'none', cursor:'pointer', color:'var(--primary)', padding:'8px'}}
+                  title="Ask AI"
+                >
+                  <Icons.Info />
+                </button>
+
+                <button onClick={() => openEditModal(med)} style={{background:'none', border:'none', cursor:'pointer', color:'var(--text-muted)', padding:'8px'}}><Icons.Edit /></button>
+                <button onClick={() => handleDeleteMed(med._id)} style={{background:'none', border:'none', cursor:'pointer', color:'#ef4444', padding:'8px'}}><Icons.Trash /></button>
+                
+                {med.status === 'taken' ? (
+                  <div style={{color:'#10b981', display:'flex', alignItems:'center', gap:'6px', fontWeight:'700', marginLeft:'8px'}}>
+                    <Icons.Check /> Taken
+                  </div>
+                ) : (
+                  <button className="action-btn" style={{padding:'8px 16px', fontSize:'0.85rem', marginLeft:'8px'}} onClick={() => markTaken(med._id)}>Mark</button>
+                )}
               </div>
             </div>
           ))}

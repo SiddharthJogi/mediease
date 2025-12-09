@@ -1,36 +1,46 @@
 const express = require('express');
 const dotenv = require('dotenv');
 
-// 1. Load environment variables first!
+// 1. LOAD ENV VARS FIRST
 dotenv.config(); 
 
 const mongoose = require('mongoose');
 const cors = require('cors');
-//const admin = require('firebase-admin');
+const admin = require('firebase-admin');
 const { Server } = require('socket.io');
 const http = require('http');
 const bcrypt = require('bcrypt');
+
+// Model Imports
 const User = require('./models/User');
 const Medication = require('./models/Medication');
+
+// Route Imports
 const userRoutes = require('./routes/userRoutes');
 const medicationRoutes = require('./routes/medicationRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
-
+const aiRoutes = require('./routes/aiRoutes'); // <--- CRITICAL FIX: Missing Import Added Here
 
 const app = express();
 const server = http.createServer(app);
 
-// --- DYNAMIC CORS CONFIGURATION ---
-// In production, we use the CLIENT_URL env var. Locally, we fall back to 5173.
+// Dynamic Client URL
 const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
 
 const io = new Server(server, { 
-  cors: { 
-    origin: clientUrl,
-    methods: ["GET", "POST", "PUT", "DELETE"],
-    credentials: true
-  } 
+  cors: { origin: clientUrl } 
 });
+
+// Initialize Firebase only if key path is provided (Optional)
+if (process.env.FIREBASE_KEY_PATH) {
+  try {
+    admin.initializeApp({
+      credential: admin.credential.cert(process.env.FIREBASE_KEY_PATH),
+    });
+  } catch (e) {
+    console.log("Firebase init skipped or failed (Optional)");
+  }
+}
 
 app.use(cors({ 
   origin: clientUrl, 
@@ -42,11 +52,6 @@ app.use((req, res, next) => {
   req.io = io;
   next();
 });
-
-// --- FIREBASE SETUP (DISABLED FOR NOW) ---
-// admin.initializeApp({
-//   credential: admin.credential.cert(process.env.FIREBASE_KEY_PATH),
-// });
 
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log('✅ MongoDB Connected'))
@@ -72,14 +77,15 @@ const seedUser = async () => {
 };
 
 const seedData = async () => {
-  await seedUser(); 
+  await seedUser();
 };
 seedData();
 
 app.get('/', (req, res) => res.send('✅ Backend is Running!'));
 app.use('/api/users', userRoutes);
 app.use('/api/medications', medicationRoutes);
-app.use('/api/notifications', notificationRoutes); // Routes will exist, but firebase logic inside might fail if triggered
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/ai', aiRoutes); // Now this will work because aiRoutes is imported
 
 app.get('/api/medications/user/:userId', async (req, res) => {
   try {
