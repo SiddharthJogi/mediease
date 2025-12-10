@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { gsap } from 'gsap';
-import { Icons } from './Icons';
+import { Icons } from './Icons'; 
 
 const Profile = ({ user, meds, theme, toggleTheme, openCaregiverModal, notifyCaregiver, openAddModal }) => {
   const containerRef = useRef(null);
@@ -12,7 +12,6 @@ const Profile = ({ user, meds, theme, toggleTheme, openCaregiverModal, notifyCar
     return () => ctx.revert();
   }, []);
 
-  // Membership Logic
   const getMembership = (points) => {
     if (points >= 500) return { name: "Platinum", color: "#e5e7eb" };
     if (points >= 200) return { name: "Gold", color: "#f59e0b" };
@@ -20,33 +19,54 @@ const Profile = ({ user, meds, theme, toggleTheme, openCaregiverModal, notifyCar
     return { name: "Bronze", color: "#b45309" };
   };
 
+  if (!user) return <div className="center-content"><p>Loading Profile...</p></div>;
+
   const membership = getMembership(user?.points || 0);
+
+  // HELPER: Handles both array ["09:00"] and string "09:00" safely
+  const formatSchedule = (med) => {
+    if (med.schedule && Array.isArray(med.schedule) && med.schedule.length > 0) {
+      return med.schedule.join(', ');
+    }
+    return med.time || 'No time set';
+  };
 
   return (
     <div className="bento-grid" ref={containerRef}>
       
       {/* HEADER */}
       <div className="glass-card header-unified anim-card">
-        <div className="header-left"><h1>My Profile</h1><p>{user.email}</p></div>
+        <div className="header-left">
+          <h1>My Profile</h1>
+          <p>{user.email}</p>
+        </div>
         <div className="header-right">
           <div className="stat-group">
-            <div className="stat-item"><div className="stat-val" style={{color:'#f59e0b'}}>🔥 {user?.streak}</div><span className="stat-label">Streak</span></div>
-            <div className="stat-item"><div className="stat-val" style={{color:'#6366f1'}}>💎 {user?.points || 0}</div><span className="stat-label">Points</span></div>
+            <div className="stat-item">
+              <div className="stat-val" style={{color:'#f59e0b'}}>🔥 {user?.streak || 0}</div>
+              <span className="stat-label">Streak</span>
+            </div>
+            <div className="stat-item">
+              <div className="stat-val" style={{color:'#6366f1'}}>💎 {user?.points || 0}</div>
+              <span className="stat-label">Points</span>
+            </div>
           </div>
-          <button className="theme-toggle-btn" onClick={toggleTheme}>{theme === 'dark' ? <Icons.Sun /> : <Icons.Moon />}</button>
+          <button className="theme-toggle-btn" onClick={toggleTheme}>
+            {theme === 'dark' ? (Icons.Sun ? <Icons.Sun /> : '☀️') : (Icons.Moon ? <Icons.Moon /> : '🌙')}
+          </button>
         </div>
       </div>
 
-      {/* --- SPLIT ROW: MEMBERSHIP + CARE NETWORK --- */}
+      {/* --- SPLIT ROW --- */}
       <div className="split-card-row anim-card">
         
-        {/* Membership Status */}
+        {/* Membership */}
         <div className="glass-card" style={{display:'flex', flexDirection:'row', alignItems:'center', gap:'2rem', justifyContent:'flex-start'}}>
            <div style={{width:'80px', height:'80px', borderRadius:'50%', background:'var(--bg-card-hover)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'2.5rem', border:`2px solid ${membership.color}`}}>🛡️</div>
            <div>
              <span className="label">Current Status</span>
              <div style={{fontSize:'2rem', fontWeight:'800', lineHeight:1, color: membership.color, marginBottom:'0.5rem'}}>{membership.name} Member</div>
-             <p className="sub-text">You have unlocked {user.totalDiscount}% off on medicines.</p>
+             <p className="sub-text">You have unlocked {user.totalDiscount || 0}% off on medicines.</p>
            </div>
         </div>
 
@@ -59,8 +79,9 @@ const Profile = ({ user, meds, theme, toggleTheme, openCaregiverModal, notifyCar
            {user.caregiverEmail ? (
              <div style={{height:'100%', display:'flex', flexDirection:'column', justifyContent:'space-between'}}>
                <h3 style={{margin:'0', fontSize:'1.1rem', wordBreak:'break-all'}}>{user.caregiverEmail}</h3>
+               {/* FIX: Ensure notifyCaregiver is called */}
                <button className="secondary-btn" style={{marginTop:'1rem', width:'100%'}} onClick={notifyCaregiver}>
-                 <Icons.Bell /> Send Alert
+                 {Icons.Bell ? <Icons.Bell /> : '🔔'} Send Alert
                </button>
              </div>
            ) : (
@@ -70,14 +91,15 @@ const Profile = ({ user, meds, theme, toggleTheme, openCaregiverModal, notifyCar
              </div>
            )}
         </div>
-
       </div>
 
       {/* PRESCRIPTIONS */}
       <div className="glass-card anim-card" style={{gridColumn: 'span 4'}}>
          <div className="card-header-row">
            <h2 style={{fontSize:'1.2rem', margin:0, fontWeight:'700'}}>My Prescriptions</h2>
-           <button className="action-btn" onClick={openAddModal}><Icons.Plus /> Add New</button>
+           <button className="action-btn" onClick={openAddModal}>
+             {Icons.Plus ? <Icons.Plus /> : '+'} Add New
+           </button>
          </div>
          <div className="med-list">
            {meds && meds.length > 0 ? meds.map((m, idx) => (
@@ -85,7 +107,8 @@ const Profile = ({ user, meds, theme, toggleTheme, openCaregiverModal, notifyCar
                  <div style={{width:'40px', height:'40px', background:'var(--bg-card-hover)', borderRadius:'10px', display:'flex', alignItems:'center', justifyContent:'center'}}>💊</div>
                  <div style={{flex:1, marginLeft:'1.5rem'}}>
                    <h3 style={{fontSize:'1.1rem', margin:0}}>{m.name}</h3>
-                   <p className="sub-text">{m.recurrence} • {m.time}</p>
+                   {/* FIX: Displays schedule properly */}
+                   <p className="sub-text">{m.recurrence || 'Daily'} • {formatSchedule(m)}</p>
                  </div>
                  <div className="label" style={{marginBottom:0, background:'var(--bg-card-hover)', padding:'4px 8px', borderRadius:'6px'}}>Active</div>
                </div>

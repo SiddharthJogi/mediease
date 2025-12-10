@@ -353,6 +353,7 @@ button, input, select, textarea { font-family: inherit; }
   text-decoration-color: #6366f1;
 }
 
+/* Ensure brand title has the gradient */
 .brand-title {
   font-size: 2.5rem; font-weight: 800; margin: 0 0 0.5rem 0;
   background: linear-gradient(to right, var(--primary), var(--accent));
@@ -450,11 +451,19 @@ button, input, select, textarea { font-family: inherit; }
 }
 
 /* --- MOBILE BREAKPOINT (Tablets & Phones) --- */
+/* --- MOBILE NAVIGATION BAR --- */
+.mobile-nav {
+  display: none; /* Hidden on Desktop */
+}
+
+/* --- MOBILE BREAKPOINT (Tablets & Phones) --- */
 @media (max-width: 768px) {
   /* 1. Layout Reset */
   .app-layout {
     grid-template-columns: 1fr; /* Remove sidebar column */
     display: block; /* Stack vertically */
+    height: auto;
+    min-height: 100vh;
   }
 
   /* 2. Hide Desktop Sidebar */
@@ -512,7 +521,7 @@ button, input, select, textarea { font-family: inherit; }
 
   .bento-grid {
     grid-template-columns: 1fr; /* Single Column */
-    gap: 1.5rem;
+    gap: 1.25rem;
   }
 
   /* Force Full Width on all cards */

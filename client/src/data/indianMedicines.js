@@ -1,4 +1,4 @@
-export const commonMedicines = [
+export const indianMedicines = [
     "Paracetamol (Dolo 650)",
     "Ibuprofen (Combiflam)",
     "Cetirizine (Cetzine)",
