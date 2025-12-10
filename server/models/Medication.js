@@ -1,4 +1,3 @@
-// server/models/Medication.js
 const mongoose = require('mongoose');
 
 const MedicationSchema = new mongoose.Schema({
@@ -15,10 +14,18 @@ const MedicationSchema = new mongoose.Schema({
     type: String,
     required: true
   },
-  // --- CHANGED FROM String TO Array of Strings ---
   schedule: {
-    type: [String], // Now accepts ["08:00", "14:00"]
+    type: [String], // ["09:00", "14:00"]
     required: true
+  },
+  // --- NEW FIELDS: Required for Marking as Taken ---
+  history: [{
+    date: String, // Format: "YYYY-MM-DD"
+    status: String // "taken" or "skipped"
+  }],
+  stats: {
+    totalTaken: { type: Number, default: 0 },
+    totalSkipped: { type: Number, default: 0 }
   },
   createdAt: {
     type: Date,

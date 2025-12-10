@@ -44,12 +44,11 @@ router.get('/user/:userId', async (req, res) => {
       const takenToday = history.some(entry => entry.date === today && entry.status === 'taken');
       medObj.status = takenToday ? 'taken' : 'pending';
       
-      // CRITICAL FIX: Ensure 'time' exists for Dashboard sorting
+      // CRITICAL FIX: Polyfill 'time' so Dashboard doesn't crash on sort
       if (!medObj.time) {
         medObj.time = (medObj.schedule && medObj.schedule.length > 0) ? medObj.schedule[0] : "09:00";
       }
       
-      // Ensure schedule exists
       if (!medObj.schedule || medObj.schedule.length === 0) {
         medObj.schedule = medObj.time ? [medObj.time] : ["09:00"];
       }
@@ -84,14 +83,13 @@ router.post('/add', async (req, res) => {
 
     await med.save();
     
-    // SYNC WITH USER PROFILE (FIXED)
+    // Sync with User Profile
     const user = await User.findById(userId);
     if (user) {
       user.medications.push({ 
         name, 
         recurrence, 
-        // SAFETY: Always save a time string (even if taken from schedule array)
-        time: med.schedule && med.schedule.length > 0 ? med.schedule[0] : (time || "09:00"),
+        time: med.schedule[0], // Safety fallback
         schedule: med.schedule,
         dosage: med.dosage
       });
@@ -135,7 +133,7 @@ router.post('/:id/status', async (req, res) => {
           await user.save();
         }
         const medObj = ensureDecryptedName(med);
-        // SAFETY: Add time back for UI
+        // Ensure time exists in response
         medObj.time = medObj.schedule && medObj.schedule.length > 0 ? medObj.schedule[0] : "09:00";
         res.status(200).json({ ...medObj, status: 'taken', user: { streak: user.streak, points: user.points } });
       } else {
@@ -145,12 +143,14 @@ router.post('/:id/status', async (req, res) => {
       }
 
     } else {
+      // Toggle back to pending
       med.history = med.history.filter(h => h.date !== today);
       await med.save();
       const medObj = ensureDecryptedName(med);
       medObj.time = medObj.schedule && medObj.schedule.length > 0 ? medObj.schedule[0] : "09:00";
       res.status(200).json({ ...medObj, status: 'pending' });
     }
+
   } catch (err) {
     res.status(500).json({ message: 'Server error', error: err.message });
   }
@@ -163,7 +163,6 @@ router.put('/update/:id', async (req, res) => {
     
     const updateData = { name, recurrence, date, dosage, schedule };
 
-    // Legacy fix
     if ((!schedule || schedule.length === 0) && time) {
         updateData.schedule = [time];
     }
@@ -181,7 +180,6 @@ router.put('/update/:id', async (req, res) => {
     const takenToday = (updatedMed.history || []).some(h => h.date === today && h.status === 'taken');
     medObj.status = takenToday ? 'taken' : 'pending';
     
-    // SAFETY: Ensure time exists
     medObj.time = medObj.schedule && medObj.schedule.length > 0 ? medObj.schedule[0] : "09:00";
 
     res.status(200).json(medObj);
