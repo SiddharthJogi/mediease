@@ -579,3 +579,108 @@ button, input, select, textarea { font-family: inherit; }
     width: 90%;
   }
 }
+
+
+/* --- PREMIUM AI MODAL STYLES --- */
+
+/* The Container */
+.ai-modal-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+/* 1. Loading State */
+.ai-loader-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 0;
+  color: var(--text-muted);
+}
+
+.ai-spinner {
+  width: 50px;
+  height: 50px;
+  border: 3px solid rgba(99, 102, 241, 0.1);
+  border-radius: 50%;
+  border-top-color: var(--primary);
+  animation: spin 1s ease-in-out infinite;
+  margin-bottom: 1.5rem;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.ai-loading-text {
+  font-size: 0.9rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% { opacity: 0.5; }
+  50% { opacity: 1; }
+  100% { opacity: 0.5; }
+}
+
+/* 2. Insight Cards (The "Billion Dollar" Look) */
+.ai-insight-card {
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.01) 100%);
+  border: 1px solid var(--border-subtle);
+  border-radius: 16px;
+  padding: 1.5rem;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.ai-insight-card:hover {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.15);
+  transform: translateY(-2px);
+}
+
+/* Specific Card Themes */
+.card-usage { border-left: 3px solid var(--primary); }
+.card-side-effects { border-left: 3px solid #f59e0b; }
+.card-alcohol { 
+  border-left: 3px solid #ef4444; 
+  background: linear-gradient(145deg, rgba(239, 68, 68, 0.05) 0%, transparent 100%);
+}
+
+/* Typography Uniformity */
+.ai-label-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 0.75rem;
+}
+
+.ai-icon { font-size: 1.1rem; }
+
+.ai-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  font-weight: 800;
+  margin: 0; /* Override default margin */
+}
+
+/* The Main Content Font - Unified */
+.ai-text {
+  font-size: 1rem;
+  line-height: 1.6;
+  color: var(--text-main);
+  font-weight: 500;
+  margin: 0;
+  opacity: 0.9;
+}
+
+/* Specific Text Colors for Emphasis */
+.text-primary { color: var(--primary); }
+.text-warning { color: #f59e0b; }
+.text-danger { color: #ef4444; }

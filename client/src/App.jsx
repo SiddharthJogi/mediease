@@ -230,13 +230,57 @@ function App() {
         }
       >
         {/* AI INFO */}
-        {modalType === 'aiInfo' && medInfo && (
-           <div style={{display:'flex', flexDirection:'column', gap:'1.5rem'}}>
-             <div><label className="label" style={{color:'var(--primary)'}}>Usage</label><p style={{fontSize:'0.9rem'}}>{medInfo.usage}</p></div>
-             <div><label className="label">Side Effects</label><p>{medInfo.sideEffects}</p></div>
-             <button className="action-btn" onClick={closeModal}>Got it</button>
-           </div>
-        )}
+        {modalType === 'aiInfo' && (
+        <div className="ai-modal-container">
+          
+          {/* 1. LOADING STATE */}
+          {aiLoading ? (
+            <div className="ai-loader-container">
+              <div className="ai-spinner"></div>
+              <p className="ai-loading-text">Analyzing molecular profile...</p>
+            </div>
+          ) : medInfo ? (
+            
+            /* 2. RESULTS STATE */
+            <>
+              {/* Usage Card */}
+              <div className="ai-insight-card card-usage">
+                <div className="ai-label-row">
+                  <span className="ai-icon">🩺</span>
+                  <span className="ai-label text-primary">Primary Use</span>
+                </div>
+                <p className="ai-text">{medInfo.usage}</p>
+              </div>
+              
+              {/* Side Effects Card */}
+              <div className="ai-insight-card card-side-effects">
+                <div className="ai-label-row">
+                  <span className="ai-icon">⚠️</span>
+                  <span className="ai-label text-warning">Potential Risks</span>
+                </div>
+                <p className="ai-text">{medInfo.sideEffects}</p>
+              </div>
+
+              {/* Alcohol Warning Card (Distinct Style) */}
+              <div className="ai-insight-card card-alcohol">
+                <div className="ai-label-row">
+                  <span className="ai-icon">🍷</span>
+                  <span className="ai-label text-danger">Alcohol Interaction</span>
+                </div>
+                <p className="ai-text" style={{color: '#fca5a5'}}>
+                  {medInfo.alcoholWarning}
+                </p>
+              </div>
+            </>
+          ) : null}
+          
+          {!aiLoading && (
+            <button className="action-btn" style={{width:'100%', marginTop:'0.5rem'}} onClick={closeModal}>
+              Done
+            </button>
+          )}
+        </div>
+      )}
 
         {/* ADD / EDIT FORM (RESTORED ADVANCED VERSION) */}
         {(modalType === 'addMed' || modalType === 'editMed') && (
