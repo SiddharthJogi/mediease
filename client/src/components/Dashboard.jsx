@@ -22,16 +22,41 @@ const Dashboard = ({
     return () => ctx.revert();
   }, []);
 
-  const nextMed = meds.filter(m => m.status === 'pending').sort((a, b) => a.time.localeCompare(b.time))[0];
+  // Helper: Get a safe time string for sorting/display
+  const getSafeTime = (med) => {
+    // If med has a schedule array, use the first time. If not, use 'time', or default to "00:00"
+    if (med.schedule && med.schedule.length > 0) return med.schedule[0];
+    return med.time || "00:00";
+  };
+
+  // Helper: Format schedule for display
+  const formatSchedule = (med) => {
+    if (med.schedule && med.schedule.length > 0) return med.schedule.join(', ');
+    return med.time || "No time set";
+  };
+
+  // Find the next upcoming medication logic
+  // Filters for pending, then sorts by safe time
+  const pendingMeds = meds.filter(m => m.status === 'pending');
+  const nextMed = pendingMeds.length > 0 
+    ? pendingMeds.sort((a, b) => getSafeTime(a).localeCompare(getSafeTime(b)))[0] 
+    : null;
+
   const [timeLeft, setTimeLeft] = React.useState('');
 
   React.useEffect(() => {
     if (!nextMed) { setTimeLeft(''); return; }
     const calculate = () => {
+      const timeStr = getSafeTime(nextMed); // Use helper here too
+      if (!timeStr.includes(':')) return;
+
       const now = new Date();
-      const [h, m] = nextMed.time.split(':');
-      const dose = new Date(); dose.setHours(h, m, 0, 0);
+      const [h, m] = timeStr.split(':');
+      const dose = new Date(); 
+      dose.setHours(h, m, 0, 0);
+      
       if (dose < now) { setTimeLeft('Overdue'); return; }
+      
       const diff = dose - now;
       const hours = Math.floor(diff / (1000 * 60 * 60));
       const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
@@ -56,7 +81,7 @@ const Dashboard = ({
             <div className="stat-item"><div className="stat-val" style={{color:'#f59e0b'}}>🔥 {user?.streak || 0}</div><span className="stat-label">Streak</span></div>
             <div className="stat-item"><div className="stat-val" style={{color:'#6366f1'}}>💎 {user?.points || 0}</div><span className="stat-label">Points</span></div>
           </div>
-          <button className="theme-toggle-btn" onClick={toggleTheme}>{theme === 'dark' ? <Icons.Sun /> : <Icons.Moon />}</button>
+          <button className="theme-toggle-btn" onClick={toggleTheme}>{theme === 'dark' ? (Icons.Sun ? <Icons.Sun /> : '☀️') : (Icons.Moon ? <Icons.Moon /> : '🌙')}</button>
         </div>
       </div>
 
@@ -76,7 +101,9 @@ const Dashboard = ({
           <div className="hero-content">
              <div>
                <h2 className="hero-title">{nextMed ? nextMed.name : "All Clear 🎉"}</h2>
-               <p className="sub-text" style={{fontSize:'1.1rem'}}>{nextMed ? `${nextMed.time} • ${nextMed.dosage || 'Standard Dose'}` : "You've taken all your medications for today."}</p>
+               <p className="sub-text" style={{fontSize:'1.1rem'}}>
+                  {nextMed ? `${getSafeTime(nextMed)} • ${nextMed.dosage || 'Standard Dose'}` : "You've taken all your medications for today."}
+               </p>
              </div>
              {nextMed && <button className="action-btn" onClick={() => markTaken(nextMed._id)}>Take Now</button>}
           </div>
@@ -85,7 +112,7 @@ const Dashboard = ({
         {/* Quick Add */}
         <div className="glass-card center-content" onClick={openAddModal} style={{cursor:'pointer'}}>
           <div style={{background:'var(--primary)', width:'56px', height:'56px', borderRadius:'14px', display:'flex', alignItems:'center', justifyContent:'center', marginBottom:'1rem', color:'white', boxShadow:'0 10px 20px var(--primary-glow)'}}>
-            <Icons.Plus />
+            {Icons.Plus ? <Icons.Plus /> : '+'}
           </div>
           <span style={{fontWeight:'700', fontSize:'1rem'}}>Add Med</span>
         </div>
@@ -97,29 +124,38 @@ const Dashboard = ({
         <div className="card-header-row"><h3 style={{fontSize:'1.2rem', fontWeight:'700', margin:0}}>Today's Schedule</h3></div>
         <div className="med-list">
           {meds.length === 0 && <div style={{textAlign:'center', padding:'3rem', color:'var(--text-muted)'}}>No medications scheduled.</div>}
-          {meds.sort((a,b) => a.time.localeCompare(b.time)).map((med) => (
+          
+          {/* SAFE SORT using helper function */}
+          {meds.sort((a,b) => getSafeTime(a).localeCompare(getSafeTime(b))).map((med) => (
             <div key={med._id} className="med-item">
-              <div style={{fontSize:'1.2rem', fontWeight:'700', color:'var(--primary)', fontFamily:'monospace'}}>{med.time}</div>
+              <div style={{fontSize:'1.2rem', fontWeight:'700', color:'var(--primary)', fontFamily:'monospace'}}>
+                {getSafeTime(med)}
+              </div>
               <div style={{flex:1, marginLeft:'2rem'}}>
                 <h3 style={{fontSize:'1.1rem', margin:0, fontWeight:'600'}}>{med.name}</h3>
-                <p style={{fontSize:'0.9rem', color:'var(--text-muted)', margin:'4px 0 0 0'}}>{med.dosage || 'Standard Dose'}</p>
+                <p style={{fontSize:'0.9rem', color:'var(--text-muted)', margin:'4px 0 0 0'}}>
+                   {med.dosage || 'Standard Dose'} • {formatSchedule(med)}
+                </p>
               </div>
               <div style={{display:'flex', gap:'10px'}}>
-                {/* NEW: AI INFO BUTTON */}
                 <button 
                   onClick={() => handleGetInfo(med.name)} 
                   style={{background:'none', border:'none', cursor:'pointer', color:'var(--primary)', padding:'8px'}}
                   title="Ask AI"
                 >
-                  <Icons.Info />
+                  {Icons.Info ? <Icons.Info /> : 'ℹ️'}
                 </button>
 
-                <button onClick={() => openEditModal(med)} style={{background:'none', border:'none', cursor:'pointer', color:'var(--text-muted)', padding:'8px'}}><Icons.Edit /></button>
-                <button onClick={() => handleDeleteMed(med._id)} style={{background:'none', border:'none', cursor:'pointer', color:'#ef4444', padding:'8px'}}><Icons.Trash /></button>
+                <button onClick={() => openEditModal(med)} style={{background:'none', border:'none', cursor:'pointer', color:'var(--text-muted)', padding:'8px'}}>
+                  {Icons.Edit ? <Icons.Edit /> : '✏️'}
+                </button>
+                <button onClick={() => handleDeleteMed(med._id)} style={{background:'none', border:'none', cursor:'pointer', color:'#ef4444', padding:'8px'}}>
+                  {Icons.Trash ? <Icons.Trash /> : '🗑️'}
+                </button>
                 
                 {med.status === 'taken' ? (
                   <div style={{color:'#10b981', display:'flex', alignItems:'center', gap:'6px', fontWeight:'700', marginLeft:'8px'}}>
-                    <Icons.Check /> Taken
+                    {Icons.Check ? <Icons.Check /> : '✓'} Taken
                   </div>
                 ) : (
                   <button className="action-btn" style={{padding:'8px 16px', fontSize:'0.85rem', marginLeft:'8px'}} onClick={() => markTaken(med._id)}>Mark</button>

@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import Confetti from 'react-confetti';
-import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 
 // Component Imports
@@ -12,16 +11,15 @@ import Auth from './components/Auth';
 import Dashboard from './components/Dashboard';
 import Profile from './components/Profile';
 import Streaks from './components/Streaks';
-import TimeScheduleInput from './components/TimeScheduleInput';
+import TimeScheduleInput from './components/TimeScheduleInput'; // Make sure this file exists!
 
 // Data & Styles
-import { indianMedicines } from './data/indianMedicines'; 
+import { indianMedicines } from './data/indianMedicines';
+import { Icons } from './components/Icons';
 import './App.css';
 
 function App() {
-  const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
-  const navigate = useNavigate();
-  const location = useLocation();
+  const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'; 
 
   // --- THEME ---
   const [theme, setTheme] = useState('dark');
@@ -33,35 +31,34 @@ function App() {
   useEffect(() => { document.documentElement.setAttribute('data-theme', theme); }, []);
 
   // --- STATE ---
+  const [page, setPage] = useState('auth');
   const [loading, setLoading] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
-  const [modalType, setModalType] = useState(null);
+  const [modalType, setModalType] = useState(null); 
   
   const [user, setUser] = useState(null);
   const [meds, setMeds] = useState([]);
-  
+
   // AI State
   const [aiLoading, setAiLoading] = useState(false);
   const [medInfo, setMedInfo] = useState(null);
 
-  // Form State
+  // Forms (Advanced)
   const [medName, setMedName] = useState('');
-  const [medDosage, setMedDosage] = useState(''); 
-  const [schedule, setSchedule] = useState(["09:00"]); 
+  const [medDosage, setMedDosage] = useState(''); // Added Dosage
+  const [schedule, setSchedule] = useState(["09:00"]); // Added Schedule Array
   const [recurrence, setRecurrence] = useState('daily');
   const [newCaregiverEmail, setNewCaregiverEmail] = useState('');
   const [selectedMedId, setSelectedMedId] = useState(null);
 
-  // --- INIT ---
+  // Init
   useEffect(() => {
     const saved = localStorage.getItem('mediease_user');
     if (saved) {
       const u = JSON.parse(saved);
       setUser(u);
+      setPage('dashboard');
       refreshData(u.userId);
-      if (location.pathname === '/') navigate('/dashboard');
-    } else {
-      navigate('/auth');
     }
   }, []);
 
@@ -79,48 +76,66 @@ function App() {
     } catch (e) { console.error("Data load failed", e); }
   };
 
-  // --- HANDLERS ---
-  const openAddModal = () => {
-    setModalType('add');
-    setMedName('');
-    setMedDosage('');
-    setSchedule(["09:00"]);
-    setRecurrence('daily');
-    setSelectedMedId(null);
+  // Handlers
+  const openAddModal = () => { 
+    setModalType('addMed'); 
+    setMedName(''); 
+    setMedDosage(''); 
+    setSchedule(["09:00"]); 
+    setRecurrence('daily'); 
+    setSelectedMedId(null); 
   };
-
-  const openEditModal = (med) => {
-    setModalType('edit');
-    // FIX 1: Add fallbacks to prevent "Uncontrolled Input" error
-    setMedName(med.name || '');
-    setMedDosage(med.dosage || '');
+  
+  const openEditModal = (med) => { 
+    setModalType('editMed'); 
+    setSelectedMedId(med._id); 
+    setMedName(med.name || ''); 
+    setMedDosage(med.dosage || ''); 
     
-    // FIX 2: Handle Array Schedule or Legacy Time
+    // Load existing schedule or fallback to legacy time
     if (med.schedule && med.schedule.length > 0) {
       setSchedule(med.schedule);
     } else {
       setSchedule(med.time ? [med.time] : ["09:00"]);
     }
     
-    setRecurrence(med.recurrence || 'daily');
-    setSelectedMedId(med._id);
+    setRecurrence(med.recurrence || 'daily'); 
   };
 
+  const openCaregiverModal = () => { setModalType('caregiver'); setNewCaregiverEmail(user.caregiverEmail || ''); };
   const closeModal = () => setModalType(null);
 
+  const handleGetInfo = async (name) => {
+    setModalType('aiInfo');
+    setMedInfo(null);
+    setAiLoading(true);
+    try {
+      const res = await axios.post(`${BASE_URL}/api/ai/medicine-info`, { medicineName: name });
+      setMedInfo(res.data);
+    } catch (e) {
+      setMedInfo({ usage: "Unavailable", sideEffects: "Try again later", alcoholWarning: "N/A" });
+    } finally { setAiLoading(false); }
+  };
+
   const handleMedSubmit = async () => {
-    if (!medName || !medDosage || !user) return alert("Fill all fields.");
+    // Validate required fields
+    if (!medName || !user) return alert("Please enter a medicine name.");
+    
     setLoading(true);
     try {
+      const date = new Date().toISOString().split('T')[0];
+      
       const payload = { 
         userId: user.userId, 
         name: medName, 
         dosage: medDosage,
-        schedule: schedule, // Sending Array
+        schedule: schedule, // Sends array ["09:00", "14:00"]
+        time: schedule[0], // Fallback for legacy
+        date, 
         recurrence 
       };
 
-      if (modalType === 'edit' && selectedMedId) {
+      if (modalType === 'editMed' && selectedMedId) {
         await axios.put(`${BASE_URL}/api/medications/update/${selectedMedId}`, payload);
       } else {
         await axios.post(`${BASE_URL}/api/medications/add`, payload);
@@ -129,158 +144,118 @@ function App() {
       }
       closeModal();
       refreshData(user.userId);
-    } catch (e) { alert("Failed. Check server logs."); } 
-    finally { setLoading(false); }
-  };
-
-  // Mark Taken Logic
-  const markTaken = async (id) => {
-    const medIndex = meds.findIndex(m => m._id === id);
-    if (medIndex === -1) return;
-    
-    // Optimistic UI Update
-    const updatedMeds = [...meds];
-    updatedMeds[medIndex] = { ...updatedMeds[medIndex], status: 'taken' };
-    setMeds(updatedMeds);
-
-    try {
-      await axios.post(`${BASE_URL}/api/medications/${id}/status`);
-      refreshData(user.userId);
-    } catch (e) {
-      console.error(e);
-      refreshData(user.userId); // Revert
+    } catch (e) { 
+        console.error(e);
+        alert("Failed to save medication."); 
+    } finally { 
+        setLoading(false); 
     }
   };
 
+  const handleCaregiverSubmit = async () => {
+    if (!newCaregiverEmail) return;
+    try {
+      await axios.put(`${BASE_URL}/api/users/profile/${user.userId}`, { caregiverEmail: newCaregiverEmail });
+      closeModal();
+      refreshData(user.userId);
+      alert("Linked!");
+    } catch (e) { alert("Failed."); }
+  };
+
   const handleDeleteMed = async (id) => {
-    if(!window.confirm("Delete this medication?")) return;
+    if(!window.confirm("Delete?")) return;
     try {
       await axios.delete(`${BASE_URL}/api/medications/delete/${id}`);
       refreshData(user.userId);
     } catch (e) { alert("Failed."); }
   };
 
-  // AI Handler
-  const handleGetInfo = async (name) => {
-    setModalType('aiInfo');
-    setMedInfo(null);
-    setAiLoading(true);
-    
+  const markTaken = async (id) => {
+    setMeds(meds.map(m => m._id === id ? { ...m, status: 'taken' } : m));
     try {
-      const res = await axios.post(`${BASE_URL}/api/ai/medicine-info`, { medicineName: name });
-      setMedInfo(res.data);
-    } catch (e) {
-      setMedInfo({ usage: "Unavailable", sideEffects: "Try again later", alcoholWarning: "N/A" });
-    } finally {
-      setAiLoading(false);
-    }
+      const res = await axios.post(`${BASE_URL}/api/medications/${id}/status`);
+      if(res.data.user) setUser(prev => ({ ...prev, ...res.data.user }));
+    } catch (e) { refreshData(user.userId); }
   };
 
-  // FIX 3: Notify Caregiver Logic
   const notifyCaregiver = async () => {
-    if (!user || !user.caregiverEmail) {
-      alert("No caregiver linked. Please link one in your profile.");
-      return;
-    }
+    if(!user.caregiverEmail) return alert("No caregiver linked.");
     try {
       await axios.post(`${BASE_URL}/api/notifications/notify-caregiver`, { userId: user.userId, type: 'email' });
-      alert("Alert Sent Successfully!");
-    } catch(e) { 
-      console.error(e);
-      alert("Failed to send alert."); 
-    }
+      alert("Sent!");
+    } catch(e) { alert("Failed."); }
   };
 
-  const handleCaregiverSubmit = async () => {
-    if (!newCaregiverEmail) return;
-    try { await axios.put(`${BASE_URL}/api/users/profile/${user.userId}`, { caregiverEmail: newCaregiverEmail }); closeModal(); refreshData(user.userId); alert("Linked!"); } catch (e) { alert("Failed."); }
+  const handleLogout = () => {
+    localStorage.removeItem('mediease_user');
+    setUser(null);
+    setPage('auth');
   };
 
-
-  // --- RENDER ---
-  if (location.pathname === '/auth') {
-    return <Auth setUser={(u) => { setUser(u); refreshData(u.userId); navigate('/dashboard'); }} BASE_URL={BASE_URL} />;
+  if (page === 'auth') {
+    return <Auth setUser={setUser} setPage={setPage} refreshData={refreshData} BASE_URL={BASE_URL} />;
   }
 
   return (
     <div className="app-layout">
       {showConfetti && <Confetti numberOfPieces={200} recycle={false} />}
       
-      <Sidebar page={location.pathname.replace('/', '')} setPage={(p) => navigate(`/${p}`)} handleLogout={() => { localStorage.removeItem('mediease_user'); setUser(null); navigate('/auth'); }} theme={theme} toggleTheme={toggleTheme} />
+      <Sidebar page={page} setPage={setPage} handleLogout={handleLogout} theme={theme} toggleTheme={toggleTheme} />
       
       <main className="main-wrapper">
-        <Routes>
-          <Route path="/dashboard" element={
-            <Dashboard 
-               user={user} meds={meds} theme={theme} toggleTheme={toggleTheme} 
-               openAddModal={openAddModal} openEditModal={openEditModal} 
-               markTaken={markTaken} handleDeleteMed={handleDeleteMed} handleGetInfo={handleGetInfo} 
-            />
-          } />
-          <Route path="/profile" element={
-             <Profile 
-                user={user} meds={meds} theme={theme} toggleTheme={toggleTheme} 
-                openAddModal={openAddModal} 
-                openCaregiverModal={() => { setModalType('caregiver'); setNewCaregiverEmail(user.caregiverEmail || ''); }}
-                notifyCaregiver={notifyCaregiver} // <--- Passing the prop here!
-             />
-          } />
-          <Route path="/streaks" element={<Streaks user={user} theme={theme} toggleTheme={toggleTheme} />} />
-          <Route path="*" element={<Navigate to="/dashboard" />} />
-        </Routes>
+        {page === 'dashboard' && (
+          <Dashboard 
+            user={user} meds={meds} theme={theme} toggleTheme={toggleTheme}
+            openAddModal={openAddModal} markTaken={markTaken} 
+            openEditModal={openEditModal} handleDeleteMed={handleDeleteMed}
+            handleGetInfo={handleGetInfo}
+          />
+        )}
+        {page === 'profile' && user && (
+          <Profile 
+            user={user} meds={meds} theme={theme} toggleTheme={toggleTheme}
+            openCaregiverModal={openCaregiverModal} notifyCaregiver={notifyCaregiver} openAddModal={openAddModal} 
+          />
+        )}
+        {page === 'streaks' && user && <Streaks user={user} theme={theme} toggleTheme={toggleTheme} />}
       </main>
 
-      <MobileNav page={location.pathname.replace('/', '')} setPage={(p) => navigate(`/${p}`)} />
+      <MobileNav page={page} setPage={setPage} />
 
-      {/* --- MODAL SYSTEM --- */}
       <Modal isOpen={!!modalType} onClose={closeModal} 
         title={
-          modalType === 'aiInfo' ? 'Medicine Insights' : 
-          (modalType === 'add' || modalType === 'edit' ? (modalType === 'edit' ? 'Edit Medication' : 'Add Medication') : 
-          (modalType === 'caregiver' ? 'Link Caregiver' : ''))
+          modalType === 'caregiver' ? 'Link Caregiver' : 
+          (modalType === 'aiInfo' ? 'Medicine Insights' : 
+          (modalType === 'editMed' ? 'Edit Medication' : 'Add Medication'))
         }
       >
         {/* AI INFO */}
-        {modalType === 'aiInfo' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', minHeight: '200px' }}>
-            {aiLoading ? (
-              <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
-                <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 2, ease: "linear" }} style={{ fontSize: '3rem', marginBottom: '1rem', display: 'inline-block' }}>🤖</motion.div>
-                <p>Asking Gemini...</p>
-              </div>
-            ) : medInfo ? (
-              <>
-                <div style={{ background: 'rgba(99, 102, 241, 0.1)', padding: '1.25rem', borderRadius: '12px', border: '1px solid var(--primary)' }}>
-                  <label className="label" style={{ color: 'var(--primary)', marginBottom: '4px' }}>Usage</label>
-                  <p style={{ margin: 0, fontSize: '1rem', lineHeight: '1.5' }}>{medInfo.usage}</p>
-                </div>
-                <div><label className="label">Common Side Effects</label><p style={{ margin: 0, color: 'var(--text-main)', lineHeight: '1.5' }}>{medInfo.sideEffects}</p></div>
-                {medInfo.alcoholWarning && (
-                  <div style={{ background: 'rgba(239, 68, 68, 0.1)', padding: '1rem', borderRadius: '8px', borderLeft: '4px solid #ef4444' }}>
-                     <label className="label" style={{ color: '#ef4444', marginBottom: '4px' }}>Alcohol Warning</label>
-                     <p style={{ margin: 0, fontSize: '0.9rem' }}>{medInfo.alcoholWarning}</p>
-                  </div>
-                )}
-              </>
-            ) : null}
-            {!aiLoading && <button className="action-btn" style={{ width: '100%', marginTop: '0.5rem' }} onClick={closeModal}>Got it</button>}
-          </div>
+        {modalType === 'aiInfo' && medInfo && (
+           <div style={{display:'flex', flexDirection:'column', gap:'1.5rem'}}>
+             <div><label className="label" style={{color:'var(--primary)'}}>Usage</label><p style={{fontSize:'0.9rem'}}>{medInfo.usage}</p></div>
+             <div><label className="label">Side Effects</label><p>{medInfo.sideEffects}</p></div>
+             <button className="action-btn" onClick={closeModal}>Got it</button>
+           </div>
         )}
 
-        {/* ADD/EDIT FORM */}
-        {(modalType === 'add' || modalType === 'edit') && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        {/* ADD / EDIT FORM (RESTORED ADVANCED VERSION) */}
+        {(modalType === 'addMed' || modalType === 'editMed') && (
+          <div style={{display:'flex', flexDirection:'column', gap:'1rem'}}>
             <div>
-              <label className="label">Medicine Name</label>
-              {/* FIX 4: Controlled Input Fallback */}
-              <input className="input-modern" placeholder="e.g. Dolo 650" value={medName || ''} onChange={e => setMedName(e.target.value)} list="med-suggestions" autoFocus />
-              <datalist id="med-suggestions">{indianMedicines && indianMedicines.map((m,i)=><option key={i} value={m}/>)}</datalist>
+              <label className="label">Name</label>
+              <input className="input-modern" placeholder="e.g. Dolo 650" value={medName} onChange={e => setMedName(e.target.value)} list="med-suggestions" autoFocus />
+              <datalist id="med-suggestions">{indianMedicines.map((m,i)=><option key={i} value={m}/>)}</datalist>
             </div>
+            
+            {/* DOSAGE INPUT (RESTORED) */}
             <div>
               <label className="label">Dosage</label>
-              <input className="input-modern" placeholder="e.g. 1 Tablet" value={medDosage || ''} onChange={e => setMedDosage(e.target.value)} />
+              <input className="input-modern" placeholder="e.g. 1 Tablet" value={medDosage} onChange={e => setMedDosage(e.target.value)} />
             </div>
+
+            {/* TIME SCHEDULE INPUT (RESTORED) */}
             <TimeScheduleInput schedule={schedule} setSchedule={setSchedule} />
+
             <div>
               <label className="label">Recurrence</label>
               <select className="input-modern" value={recurrence} onChange={e => setRecurrence(e.target.value)}>
@@ -288,8 +263,8 @@ function App() {
                 <option value="weekly">Weekly</option>
               </select>
             </div>
-            <button className="action-btn" style={{ width: '100%', marginTop: '1rem' }} onClick={handleMedSubmit}>
-              {loading ? 'Saving...' : (modalType === 'edit' ? 'Update' : 'Save')}
+            <button className="action-btn" style={{width:'100%', marginTop:'0.5rem'}} onClick={handleMedSubmit}>
+              {loading ? 'Saving...' : 'Save'}
             </button>
           </div>
         )}
@@ -297,8 +272,9 @@ function App() {
         {/* CAREGIVER */}
         {modalType === 'caregiver' && (
           <div style={{display:'flex', flexDirection:'column', gap:'1rem'}}>
-             <input className="input-modern" type="email" value={newCaregiverEmail} onChange={e => setNewCaregiverEmail(e.target.value)} placeholder="name@example.com" />
-             <button className="action-btn" onClick={handleCaregiverSubmit}>Link</button>
+            <p className="sub-text">Enter email to receive alerts.</p>
+            <input className="input-modern" type="email" value={newCaregiverEmail} onChange={e => setNewCaregiverEmail(e.target.value)} placeholder="name@example.com" />
+            <button className="action-btn" style={{width:'100%'}} onClick={handleCaregiverSubmit}>Link Account</button>
           </div>
         )}
       </Modal>
