@@ -22,14 +22,20 @@ router.post('/notify-caregiver', async (req, res) => {
       return res.status(500).json({ message: 'Server Misconfiguration: Email credentials not loaded.' });
     }
     
-    // 2. Re-create transporter here to be sure credentials are fresh
+    // 2. Re-create transporter with EXPLICIT SSL settings
     const transporter = nodemailer.createTransport({
-        service: 'gmail',
-        auth: { user: EMAIL_USER, pass: EMAIL_PASS }
-        // We can add secure: true, port: 465 if Render's default port fails, 
-        // but let's try this first.
+      host: 'smtp.gmail.com',  // Use explicit host
+      port: 465,               // Force SSL port (crucial for Render)
+      secure: true,            // true for 465, false for other ports
+      auth: { 
+          user: EMAIL_USER, 
+          pass: EMAIL_PASS 
+      },
+      // Add these timeout settings to prevent hanging
+      connectionTimeout: 10000, // 10 seconds
+      greetingTimeout: 10000,
+      socketTimeout: 10000, 
     });
-
 
     // 3. Find User
     const user = await User.findById(userId);

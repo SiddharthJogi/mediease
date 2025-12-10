@@ -8,6 +8,7 @@ const User = require('../models/User');
 const decryptName = (encryptedName) => {
   try {
     if (!encryptedName || typeof encryptedName !== 'string') return encryptedName;
+    // Basic check to see if it looks like hex (optional but good safety)
     if (!/^[0-9a-f]{64,}$/i.test(encryptedName)) return encryptedName;
     
     const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || 'your32bytesecretkey1234567890123';
@@ -18,7 +19,7 @@ const decryptName = (encryptedName) => {
     decrypted += decipher.final('utf8');
     return decrypted;
   } catch (err) {
-    console.error('Decryption failed:', err.message);
+    // console.error('Decryption failed:', err.message); // Optional logging
     return encryptedName;
   }
 };
@@ -41,20 +42,25 @@ router.get('/user/:userId', async (req, res) => {
     const today = getTodayString();
     const meds = await Medication.find({ userId: req.params.userId });
     
-    // Transform data: Calculate status dynamically
+    // Transform data: Decrypt & Calculate status
     const dynamicMeds = meds.map(med => {
       const medObj = med.toObject();
+      
+      // 1. Decrypt Name
       medObj.name = decryptName(medObj.name);
 
-      // Check history: Has this specific medicine been taken TODAY?
-      // Note: 'history' field must exist in Medication model (see previous step)
+      // 2. Check History (Has this been taken TODAY?)
       const history = med.history || [];
       const takenToday = history.some(entry => entry.date === today && entry.status === 'taken');
       
-      // Force the status sent to frontend based on today's history
-      // If taken today -> 'taken'. If not -> 'pending'.
+      // 3. Set Status
       medObj.status = takenToday ? 'taken' : 'pending';
       
+      // 4. Ensure Schedule exists (Backwards Compatibility)
+      if (!medObj.schedule || medObj.schedule.length === 0) {
+        medObj.schedule = medObj.time ? [medObj.time] : ["09:00"];
+      }
+
       return medObj;
     });
 
@@ -68,28 +74,41 @@ router.get('/user/:userId', async (req, res) => {
 
 
 // ==========================================
-// 2. ADD Medication
+// 2. ADD Medication (Updated for Schedule Array)
 // ==========================================
 router.post('/add', async (req, res) => {
-  const { userId, name, date, time, recurrence } = req.body;
-  if (!userId || !name || !date || !time) {
-    return res.status(400).json({ message: 'All fields are required' });
+  // Destructure new fields: dosage, schedule
+  const { userId, name, date, time, recurrence, dosage, schedule } = req.body;
+
+  if (!userId || !name) {
+    return res.status(400).json({ message: 'User ID and Name are required' });
   }
+
   try {
     const med = new Medication({ 
       userId, 
-      name, 
-      date, 
-      time, 
-      recurrence,
+      name, // Will be encrypted by pre-save hook in Model if you have one
+      date: date || getTodayString(), 
+      recurrence: recurrence || 'daily',
+      dosage: dosage || 'As prescribed',
+      
+      // LOGIC: Use new schedule array OR fallback to single time
+      schedule: schedule || (time ? [time] : ["09:00"]),
+      
       history: [] // Initialize empty history
     });
+
     await med.save();
     
     // Sync with User Profile (Optional backup)
     const user = await User.findById(userId);
     if (user) {
-      user.medications.push({ name, recurrence, time });
+      // We push a simplified object to the user array
+      user.medications.push({ 
+        name, 
+        recurrence, 
+        schedule: med.schedule 
+      });
       await user.save();
     }
     
@@ -103,7 +122,7 @@ router.post('/add', async (req, res) => {
 
 
 // ==========================================
-// 3. MARK TAKEN (History Logic)
+// 3. MARK TAKEN (Preserved History Logic)
 // ==========================================
 router.post('/:id/status', async (req, res) => {
   try {
@@ -120,33 +139,46 @@ router.post('/:id/status', async (req, res) => {
     if (!alreadyTaken) {
       // 1. Update Medication History
       med.history.push({ date: today, status: 'taken' });
+      
       // Update basic stats
       if (!med.stats) med.stats = {};
       med.stats.totalTaken = (med.stats.totalTaken || 0) + 1;
+      
       await med.save();
 
       // 2. Update User Streak & Points (Only once per day globally)
       const user = await User.findById(med.userId);
-      const userLastUpdate = user.lastStreakUpdate ? user.lastStreakUpdate.toISOString().split('T')[0] : null;
+      if (user) {
+        const userLastUpdate = user.lastStreakUpdate ? user.lastStreakUpdate.toISOString().split('T')[0] : null;
 
-      if (userLastUpdate !== today) {
-        user.streak = (user.streak || 0) + 1;
-        user.points = (user.points || 0) + 10;
-        user.lastStreakUpdate = new Date();
-        user.totalDiscount = Math.min(Math.floor(user.points / 100), 20); // Cap at 20%
-        await user.save();
-      }
+        if (userLastUpdate !== today) {
+          user.streak = (user.streak || 0) + 1;
+          user.points = (user.points || 0) + 10;
+          user.lastStreakUpdate = new Date();
+          // Cap discount at 20%
+          user.totalDiscount = Math.min(Math.floor(user.points / 100), 20); 
+          await user.save();
+        }
       
-      const medObj = ensureDecryptedName(med);
-      res.status(200).json({ 
-        ...medObj, 
-        status: 'taken', 
-        user: { streak: user.streak, points: user.points } 
-      });
+        const medObj = ensureDecryptedName(med);
+        res.status(200).json({ 
+          ...medObj, 
+          status: 'taken', 
+          user: { streak: user.streak, points: user.points } 
+        });
+      } else {
+         const medObj = ensureDecryptedName(med);
+         res.status(200).json({ ...medObj, status: 'taken' });
+      }
+
     } else {
-      // It's already taken, just return success
+      // ALREADY TAKEN TODAY -> TOGGLE BACK TO PENDING (Undo)
+      // This is useful if user clicked by mistake
+      med.history = med.history.filter(h => h.date !== today);
+      await med.save();
+
       const medObj = ensureDecryptedName(med);
-      res.status(200).json({ ...medObj, status: 'taken' });
+      res.status(200).json({ ...medObj, status: 'pending' });
     }
 
   } catch (err) {
@@ -157,16 +189,31 @@ router.post('/:id/status', async (req, res) => {
 
 
 // ==========================================
-// 4. UPDATE Medication (New)
+// 4. UPDATE Medication (Fixed for Dosage/Schedule)
 // ==========================================
 router.put('/update/:id', async (req, res) => {
   try {
-    const { name, time, recurrence, date } = req.body;
+    // Destructure all possible fields
+    const { name, time, recurrence, date, dosage, schedule } = req.body;
     
+    // Create update object
+    const updateData = {
+        name,
+        recurrence,
+        date,
+        dosage,
+        schedule
+    };
+
+    // If schedule is missing but time is provided (legacy fix), use time
+    if ((!schedule || schedule.length === 0) && time) {
+        updateData.schedule = [time];
+    }
+
     // Find and update
     const updatedMed = await Medication.findByIdAndUpdate(
       req.params.id,
-      { $set: { name, time, recurrence, date } }, 
+      { $set: updateData }, 
       { new: true } // Return the updated document
     );
 
@@ -174,7 +221,7 @@ router.put('/update/:id', async (req, res) => {
 
     const medObj = ensureDecryptedName(updatedMed);
     
-    // We calculate status again to ensure UI consistency
+    // Recalculate status for UI
     const today = getTodayString();
     const takenToday = (updatedMed.history || []).some(h => h.date === today && h.status === 'taken');
     medObj.status = takenToday ? 'taken' : 'pending';
@@ -187,25 +234,18 @@ router.put('/update/:id', async (req, res) => {
 });
 
 
-// server/routes/medicationRoutes.js
-
-// ... existing code ...
-
-// 5. DELETE Medication (Fixed to update User profile too)
+// ==========================================
+// 5. DELETE Medication
+// ==========================================
 router.delete('/delete/:id', async (req, res) => {
   try {
     const med = await Medication.findByIdAndDelete(req.params.id);
     if (!med) return res.status(404).json({ message: 'Medication not found' });
     
-    // KEY FIX: Remove from User's medications array
-    // This assumes your User model has a medications array storing objects with a matching name or ID.
-    // If your User schema stores simplified meds without IDs, we match by name & time.
-    // Ideally, store the medication ID in the User schema for reliable deletion.
-    
-    // Option A: If User.medications stores just Name/Time (based on your schema)
+    // Remove from User's medications array
     await User.updateOne(
       { _id: med.userId }, 
-      { $pull: { medications: { name: med.name, time: med.time } } }
+      { $pull: { medications: { name: med.name } } } // Simplified pull by Name
     );
 
     res.status(200).json({ message: 'Medication deleted successfully' });
